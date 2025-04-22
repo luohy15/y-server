@@ -1,4 +1,4 @@
-name = "y-server-search"
+name = "y-server"
 main = "src/index.ts"
 compatibility_date = "2024-02-22"
 

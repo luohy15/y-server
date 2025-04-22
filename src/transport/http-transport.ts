@@ -150,7 +150,7 @@ export class StreamableHTTPServerTransport {
                 }
               },
               serverInfo: {
-                name: "y-server-search",
+                name: "y-server",
                 version: "0.1.0"
               }
             }
