@@ -1,0 +1,12 @@
+name = "brave-search-worker"
+main = "worker.ts"
+compatibility_date = "2024-02-22"
+
+[vars]
+# The BRAVE_API_KEY will be set in the Cloudflare dashboard or via wrangler secret
+# BRAVE_API_KEY = "your-api-key-here"
+
+[dev]
+port = 8788
+ip = "localhost"
+local_protocol = "http"

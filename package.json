@@ -1,0 +1,19 @@
+{
+  "name": "brave-search-worker",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker for Brave Search MCP Server with streamable HTTP support",
+  "type": "module",
+  "scripts": {
+    "build": "wrangler build",
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.10.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240208.0",
+    "typescript": "^5.3.3",
+    "wrangler": "^3.28.1"
+  }
+}
