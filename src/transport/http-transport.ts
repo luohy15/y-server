@@ -37,16 +37,12 @@ export class StreamableHTTPServerTransport {
       });
     }
 
-    // Extract Bearer token from Authorization header
+    // Extract Bearer token from Authorization header or use default API key
+    let token = env.DEFAULT_API_KEY;
     const authHeader = request.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return this.errorResponse(401, {
-        code: -32001,
-        message: "Unauthorized: Bearer token required",
-      });
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      token = authHeader.substring(7); // Remove 'Bearer ' prefix
     }
-    
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
     switch (request.method) {
       case "POST":
