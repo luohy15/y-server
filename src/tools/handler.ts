@@ -92,7 +92,7 @@ export async function handleToolCall(name: string, args: unknown, apiKey: string
     serviceKey = getApiKeyForService(apiKey, 'brave');
   } else if (name.startsWith('tavily_')) {
     serviceKey = getApiKeyForService(apiKey, 'tavily');
-  } else if (name.startsWith('image_generate')) {
+  } else if (name.startsWith('image_router_')) {
     serviceKey = getApiKeyForService(apiKey, 'image_router');
   } else {
     // For unknown tools, use the original token
