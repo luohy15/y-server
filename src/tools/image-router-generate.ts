@@ -64,7 +64,7 @@ async function saveImageToR2(imageData: string, env: Env, contentType: string = 
 
 // Tool definition
 export const IMAGE_GENERATE_TOOL: Tool = {
-  name: "image_generate",
+  name: "image_router_generate",
   description:
     "Generates images using AI models based on text prompts. " +
     "This tool leverages image generation capabilities to create visual content " +

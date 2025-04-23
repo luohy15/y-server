@@ -3,7 +3,41 @@ import { WEB_SEARCH_TOOL, performWebSearch, isBraveWebSearchArgs } from "./brave
 import { LOCAL_SEARCH_TOOL, performLocalSearch, isBraveLocalSearchArgs } from "./brave-local-search";
 import { SEARCH_TOOL, performTavilySearch, isTavilySearchArgs } from "./tavily-search";
 import { EXTRACT_TOOL, performTavilyExtract, isTavilyExtractArgs } from "./tavily-extract";
-import { IMAGE_GENERATE_TOOL, performImageGeneration, isImageGenerateArgs } from "./image-generate";
+import { IMAGE_GENERATE_TOOL, performImageGeneration, isImageGenerateArgs } from "./image-router-generate";
+import { 
+  LIST_CALENDARS_TOOL, 
+  GET_CALENDAR_EVENTS_TOOL,
+  CREATE_CALENDAR_EVENT_TOOL,
+  DELETE_CALENDAR_EVENT_TOOL,
+  listCalendars, 
+  isListCalendarsArgs,
+  getCalendarEvents,
+  isGetEventsArgs,
+  createCalendarEvent,
+  isCreateEventArgs,
+  deleteCalendarEvent,
+  isDeleteEventArgs
+} from "./google/calendar";
+import {
+  QUERY_EMAILS_TOOL,
+  GET_EMAIL_TOOL,
+  BULK_GET_EMAILS_TOOL,
+  CREATE_DRAFT_TOOL,
+  DELETE_DRAFT_TOOL,
+  REPLY_EMAIL_TOOL,
+  queryEmails,
+  isQueryEmailsArgs,
+  getEmail,
+  isGetEmailArgs,
+  bulkGetEmails,
+  isBulkGetEmailsArgs,
+  createDraft,
+  isCreateDraftArgs,
+  deleteDraft,
+  isDeleteDraftArgs,
+  replyEmail,
+  isReplyEmailArgs
+} from "./google/gmail";
 import { Env } from "../types/index.js";
 
 /**
@@ -119,12 +153,82 @@ export async function handleToolCall(name: string, args: unknown, apiKey: string
       return performTavilyExtract(urls, { extract_depth, include_images }, serviceKey);
     }
 
-    case "image_generate": {
+    case "image_router_generate": {
       if (!isImageGenerateArgs(args)) {
-        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for image_generate");
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for image_router_generate");
       }
       const { prompt, model, size, n, response_format } = args;
       return performImageGeneration(prompt, { model, size, n, response_format }, serviceKey, env);
+    }
+
+    case "google-calendar-list-calendars": {
+      if (!isListCalendarsArgs(args)) {
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for google-calendar-list-calendars");
+      }
+      return listCalendars(serviceKey);
+    }
+
+    case "google-calendar-get-events": {
+      if (!isGetEventsArgs(args)) {
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for google-calendar-get-events");
+      }
+      return getCalendarEvents(serviceKey, args);
+    }
+
+    case "google-calendar-create-event": {
+      if (!isCreateEventArgs(args)) {
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for google-calendar-create-event");
+      }
+      return createCalendarEvent(serviceKey, args);
+    }
+
+    case "google-calendar-delete-event": {
+      if (!isDeleteEventArgs(args)) {
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for google-calendar-delete-event");
+      }
+      return deleteCalendarEvent(serviceKey, args);
+    }
+
+    case "google-gmail-query-emails": {
+      if (!isQueryEmailsArgs(args)) {
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for google-gmail-query-emails");
+      }
+      return queryEmails(serviceKey, args);
+    }
+
+    case "google-gmail-get-email": {
+      if (!isGetEmailArgs(args)) {
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for google-gmail-get-email");
+      }
+      return getEmail(serviceKey, args);
+    }
+
+    case "google-gmail-bulk-get-emails": {
+      if (!isBulkGetEmailsArgs(args)) {
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for google-gmail-bulk-get-emails");
+      }
+      return bulkGetEmails(serviceKey, args);
+    }
+
+    case "google-gmail-create-draft": {
+      if (!isCreateDraftArgs(args)) {
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for google-gmail-create-draft");
+      }
+      return createDraft(serviceKey, args);
+    }
+
+    case "google-gmail-delete-draft": {
+      if (!isDeleteDraftArgs(args)) {
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for google-gmail-delete-draft");
+      }
+      return deleteDraft(serviceKey, args);
+    }
+
+    case "google-gmail-reply-email": {
+      if (!isReplyEmailArgs(args)) {
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for google-gmail-reply-email");
+      }
+      return replyEmail(serviceKey, args);
     }
 
     default:
@@ -144,6 +248,16 @@ export function getTools() {
     LOCAL_SEARCH_TOOL,
     SEARCH_TOOL,
     EXTRACT_TOOL,
-    IMAGE_GENERATE_TOOL
+    IMAGE_GENERATE_TOOL,
+    LIST_CALENDARS_TOOL,
+    GET_CALENDAR_EVENTS_TOOL,
+    CREATE_CALENDAR_EVENT_TOOL,
+    DELETE_CALENDAR_EVENT_TOOL,
+    QUERY_EMAILS_TOOL,
+    GET_EMAIL_TOOL,
+    BULK_GET_EMAILS_TOOL,
+    CREATE_DRAFT_TOOL,
+    DELETE_DRAFT_TOOL,
+    REPLY_EMAIL_TOOL
   ];
 }
