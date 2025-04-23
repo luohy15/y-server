@@ -193,7 +193,7 @@ export class StreamableHTTPServerTransport {
             throw new McpError(ErrorCode.InvalidParams, "No arguments provided");
           }
 
-          const results = await handleToolCall(name, args, token);
+          const results = await handleToolCall(name, args, token, env);
           return {
             jsonrpc: "2.0",
             result: {

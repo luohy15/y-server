@@ -3,6 +3,8 @@ import { WEB_SEARCH_TOOL, performWebSearch, isBraveWebSearchArgs } from "./brave
 import { LOCAL_SEARCH_TOOL, performLocalSearch, isBraveLocalSearchArgs } from "./brave-local-search";
 import { SEARCH_TOOL, performTavilySearch, isTavilySearchArgs } from "./tavily-search";
 import { EXTRACT_TOOL, performTavilyExtract, isTavilyExtractArgs } from "./tavily-extract";
+import { IMAGE_GENERATE_TOOL, performImageGeneration, isImageGenerateArgs } from "./image-generate";
+import { Env } from "../types/index.js";
 
 /**
  * Helper function to get the appropriate API key for a service from a composite token
@@ -45,9 +47,10 @@ function getApiKeyForService(token: string, service: string): string {
  * @param name - Tool name
  * @param args - Tool arguments
  * @param apiKey - API key for tool authentication
+ * @param env - Cloudflare Worker environment
  * @returns Promise with tool execution result
  */
-export async function handleToolCall(name: string, args: unknown, apiKey: string): Promise<string> {
+export async function handleToolCall(name: string, args: unknown, apiKey: string, env?: Env): Promise<string> {
   // Get the appropriate API key based on the tool name
   let serviceKey: string;
   
@@ -55,6 +58,8 @@ export async function handleToolCall(name: string, args: unknown, apiKey: string
     serviceKey = getApiKeyForService(apiKey, 'brave');
   } else if (name.startsWith('tavily_')) {
     serviceKey = getApiKeyForService(apiKey, 'tavily');
+  } else if (name.startsWith('image_generate')) {
+    serviceKey = getApiKeyForService(apiKey, 'image_router');
   } else {
     // For unknown tools, use the original token
     serviceKey = apiKey;
@@ -114,6 +119,14 @@ export async function handleToolCall(name: string, args: unknown, apiKey: string
       return performTavilyExtract(urls, { extract_depth, include_images }, serviceKey);
     }
 
+    case "image_generate": {
+      if (!isImageGenerateArgs(args)) {
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for image_generate");
+      }
+      const { prompt, model, size, n, response_format } = args;
+      return performImageGeneration(prompt, { model, size, n, response_format }, serviceKey, env);
+    }
+
     default:
       throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
   }
@@ -130,6 +143,7 @@ export function getTools() {
     WEB_SEARCH_TOOL,
     LOCAL_SEARCH_TOOL,
     SEARCH_TOOL,
-    EXTRACT_TOOL
+    EXTRACT_TOOL,
+    IMAGE_GENERATE_TOOL
   ];
 }
