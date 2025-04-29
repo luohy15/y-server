@@ -39,7 +39,6 @@ export interface GetEventsArgs {
   timeMax?: string;
   maxResults?: number;
   showDeleted?: boolean;
-  calendarId?: string;
 }
 
 // Tool definition
@@ -68,11 +67,6 @@ export const GET_CALENDAR_EVENTS_TOOL: Tool = {
         type: "boolean",
         description: "Whether to include deleted events",
         default: false
-      },
-      calendarId: {
-        type: "string",
-        description: "Optional ID of the specific calendar. If not provided, the primary calendar is used.",
-        default: "primary"
       }
     }
   }
@@ -115,7 +109,7 @@ export async function getCalendarEvents(apiKey: string, args: GetEventsArgs): Pr
     
     // Prepare parameters
     const params: any = {
-      calendarId: args.calendarId || 'primary',
+      calendarId: 'primary',
       timeMin: args.timeMin,
       maxResults: maxResults,
       singleEvents: true,

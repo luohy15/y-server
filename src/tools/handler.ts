@@ -5,18 +5,18 @@ import { SEARCH_TOOL, performTavilySearch, isTavilySearchArgs } from "./tavily-s
 import { EXTRACT_TOOL, performTavilyExtract, isTavilyExtractArgs } from "./tavily-extract";
 import { IMAGE_GENERATE_TOOL, performImageGeneration, isImageGenerateArgs } from "./image-router-generate";
 import { 
-  LIST_CALENDARS_TOOL, 
   GET_CALENDAR_EVENTS_TOOL,
   CREATE_CALENDAR_EVENT_TOOL,
   DELETE_CALENDAR_EVENT_TOOL,
-  listCalendars, 
-  isListCalendarsArgs,
+  UPDATE_CALENDAR_EVENT_TOOL,
   getCalendarEvents,
   isGetEventsArgs,
   createCalendarEvent,
   isCreateEventArgs,
   deleteCalendarEvent,
-  isDeleteEventArgs
+  isDeleteEventArgs,
+  updateCalendarEvent,
+  isUpdateEventArgs
 } from "./google/calendar";
 import {
   QUERY_EMAILS_TOOL,
@@ -161,13 +161,6 @@ export async function handleToolCall(name: string, args: unknown, apiKey: string
       return performImageGeneration(prompt, { model, size, n, response_format }, serviceKey, env);
     }
 
-    case "google-calendar-list-calendars": {
-      if (!isListCalendarsArgs(args)) {
-        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for google-calendar-list-calendars");
-      }
-      return listCalendars(serviceKey);
-    }
-
     case "google-calendar-get-events": {
       if (!isGetEventsArgs(args)) {
         throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for google-calendar-get-events");
@@ -187,6 +180,13 @@ export async function handleToolCall(name: string, args: unknown, apiKey: string
         throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for google-calendar-delete-event");
       }
       return deleteCalendarEvent(serviceKey, args);
+    }
+
+    case "google-calendar-update-event": {
+      if (!isUpdateEventArgs(args)) {
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for google-calendar-update-event");
+      }
+      return updateCalendarEvent(serviceKey, args);
     }
 
     case "google-gmail-query-emails": {
@@ -249,10 +249,10 @@ export function getTools() {
     SEARCH_TOOL,
     EXTRACT_TOOL,
     IMAGE_GENERATE_TOOL,
-    LIST_CALENDARS_TOOL,
     GET_CALENDAR_EVENTS_TOOL,
     CREATE_CALENDAR_EVENT_TOOL,
     DELETE_CALENDAR_EVENT_TOOL,
+    UPDATE_CALENDAR_EVENT_TOOL,
     QUERY_EMAILS_TOOL,
     GET_EMAIL_TOOL,
     BULK_GET_EMAILS_TOOL,

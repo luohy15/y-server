@@ -11,7 +11,6 @@ export interface CreateEventArgs {
   attendees?: string[];
   sendNotifications?: boolean;
   timezone?: string;
-  calendarId?: string;
 }
 
 // Tool definition
@@ -56,11 +55,6 @@ export const CREATE_CALENDAR_EVENT_TOOL: Tool = {
       timezone: {
         type: "string",
         description: "Timezone for the event (e.g. 'America/New_York'). Defaults to UTC if not specified."
-      },
-      calendarId: {
-        type: "string",
-        description: "Optional ID of the specific calendar. If not provided, the primary calendar is used.",
-        default: "primary"
       }
     },
     required: ["summary", "startTime", "endTime"]
@@ -126,9 +120,9 @@ export async function createCalendarEvent(apiKey: string, args: CreateEventArgs)
       event.attendees = args.attendees.map(email => ({ email }));
     }
     
-    // Create the event
+    // Create the event in primary calendar
     const response = await calendar.events.insert({
-      calendarId: args.calendarId || 'primary',
+      calendarId: 'primary',
       requestBody: event,
       sendNotifications: args.sendNotifications !== false
     });

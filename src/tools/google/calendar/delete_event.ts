@@ -5,7 +5,6 @@ import { google } from "googleapis";
 export interface DeleteEventArgs {
   eventId: string;
   sendNotifications?: boolean;
-  calendarId?: string;
 }
 
 // Tool definition
@@ -23,11 +22,6 @@ export const DELETE_CALENDAR_EVENT_TOOL: Tool = {
         type: "boolean",
         description: "Whether to send cancellation notifications to attendees",
         default: true
-      },
-      calendarId: {
-        type: "string",
-        description: "Optional ID of the specific calendar. If not provided, the primary calendar is used.",
-        default: "primary"
       }
     },
     required: ["eventId"]
@@ -67,9 +61,9 @@ export async function deleteCalendarEvent(apiKey: string, args: DeleteEventArgs)
       auth: oauth2Client
     });
     
-    // Delete the event
+    // Delete the event from primary calendar
     await calendar.events.delete({
-      calendarId: args.calendarId || 'primary',
+      calendarId: 'primary',
       eventId: args.eventId,
       sendNotifications: args.sendNotifications !== false
     });
