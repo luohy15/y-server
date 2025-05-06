@@ -3,6 +3,8 @@ import { WEB_SEARCH_TOOL, performWebSearch, isBraveWebSearchArgs } from "./searc
 import { LOCAL_SEARCH_TOOL, performLocalSearch, isBraveLocalSearchArgs } from "./search/brave/brave_local_search";
 import { SEARCH_TOOL, performTavilySearch, isTavilySearchArgs } from "./search/tavily/tavily_search";
 import { EXTRACT_TOOL, performTavilyExtract, isTavilyExtractArgs } from "./search/tavily/tavily_extract";
+import { SCRAPE_TOOL, performFirecrawlScrape, isFirecrawlScrapeArgs } from "./fetch/firecrawl/firecrawl_scrape";
+import { CLOUDFLARE_FETCH_TOOL, performCloudfareFetch, isCloudfareFetchArgs } from "./fetch/cloudflare/cloudflare_fetch";
 import { IMAGE_GENERATE_TOOL, performImageGeneration, isImageGenerateArgs } from "./image/image-router/image_router_generate";
 import { READ_FILE_TOOL, isS3ReadFileArgs, readS3File } from "./editor/s3/read_file";
 import { WRITE_TO_FILE_TOOL, isS3WriteFileArgs, writeS3File } from "./editor/s3/write_to_file";
@@ -44,39 +46,6 @@ import {
 import { Env } from "../types/index.js";
 
 /**
- * Helper function to get the appropriate API key for a service from a composite token
- * Handles formats like "tavily:key1,brave:key2" and extracts the relevant key
- * 
- * @param token - The raw token string (may contain service-specific keys)
- * @param service - The service to get the key for (e.g., 'brave', 'tavily')
- * @returns The service-specific key if available, otherwise the original token
- */
-function getApiKeyForService(token: string, service: string): string {
-  // Check if token contains service-specific keys (format: "service1:key1,service2:key2")
-  if (token.includes(':')) {
-    const keyMap: Record<string, string> = {};
-    const keyPairs = token.split(',');
-    
-    // Parse each key pair
-    for (const pair of keyPairs) {
-      const [prefix, key] = pair.split(':');
-      if (prefix && key) {
-        keyMap[prefix.trim()] = key.trim();
-      }
-    }
-    
-    // Return the service-specific key if available
-    if (keyMap[service]) {
-      return keyMap[service];
-    }
-  }
-  
-  // If no service prefixes are found or specific service key not found, return the entire token
-  return token;
-}
-
-
-/**
  * Handle tool calls based on tool name
  * This central registry makes adding new tools easier by isolating
  * tool implementations from the transport layer
@@ -89,6 +58,13 @@ function getApiKeyForService(token: string, service: string): string {
  */
 export async function handleToolCall(name: string, args: unknown, apiKey: string, env?: Env): Promise<string> {
   switch (name) {
+    case "fetch": {
+      if (!isCloudfareFetchArgs(args)) {
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for fetch");
+      }
+      return performCloudfareFetch(args, env);
+    }
+
     case "s3-read-file": {
       if (!isS3ReadFileArgs(args)) {
         throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for read-file");
@@ -241,6 +217,13 @@ export async function handleToolCall(name: string, args: unknown, apiKey: string
       return replyEmail(apiKey, args);
     }
 
+    case "firecrawl-scrape": {
+      if (!isFirecrawlScrapeArgs(args)) {
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for firecrawl-scrape");
+      }
+      return performFirecrawlScrape(args, apiKey);
+    }
+
     default:
       throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
   }
@@ -282,19 +265,36 @@ export function getTools(integrations?: string[]) {
 
     // Image generation tools
     IMAGE_GENERATE_TOOL,
+    
+    // Fetch tools
+    SCRAPE_TOOL,
+    CLOUDFLARE_FETCH_TOOL,
   ];
 
-  // If no integrations specified, return no tools
-  if (!integrations || integrations.length === 0) {
-    return [];
-  }
+  // Get tools that don't require authentication (always available)
+  const alwaysAvailableTools = [
+    CLOUDFLARE_FETCH_TOOL
+  ];
 
-  // Filter tools based on the integration prefixes
-  return allTools.filter(tool => {
+  // If no integrations specified, return always available tools
+  if (!integrations || integrations.length === 0) {
+    return alwaysAvailableTools;
+  }
+  
+  // Filter other tools based on the integration prefixes
+  const filteredTools = allTools.filter(tool => {
+    // Skip tools that are always available
+    if (alwaysAvailableTools.includes(tool)) {
+      return false;
+    }
+    
     const name = tool.name;
     // Check if any of the allowed integrations match the tool name prefix
     return integrations.some(integration => 
       name.startsWith(integration + '-')
     );
   });
+  
+  // Return always available tools plus filtered tools
+  return [...alwaysAvailableTools, ...filteredTools];
 }

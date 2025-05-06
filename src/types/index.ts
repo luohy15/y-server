@@ -1,7 +1,9 @@
 // Cloudflare Worker specific types
 export interface Env {
-  // No environment variables needed as we use Bearer token
-  DEFAULT_API_KEY: string;
+  // Cloudflare account id for Browser Rendering
+  CLOUDFLARE_ACCOUNT_ID: string;
+  // Cloudflare api token for Browser Rendering
+  CLOUDFLARE_BROWSER_RENDER_API_TOKEN: string;
   // R2 bucket for storing images
   CDN_BUCKET: R2Bucket;
 }
