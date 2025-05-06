@@ -1,5 +1,5 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
-import { Env } from "../types/index.js";
+import { Env } from "../../../types/index.js";
 
 // Type definitions
 export interface ImageGenerationResponse {
@@ -64,7 +64,7 @@ async function saveImageToR2(imageData: string, env: Env, contentType: string = 
 
 // Tool definition
 export const IMAGE_GENERATE_TOOL: Tool = {
-  name: "image_router_generate",
+  name: "image-router-generate",
   description:
     "Generates images using AI models based on text prompts. " +
     "This tool leverages image generation capabilities to create visual content " +

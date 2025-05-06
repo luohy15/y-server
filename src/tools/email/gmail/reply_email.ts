@@ -1,7 +1,7 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { google } from "googleapis";
 import { EmailDetail } from "./get_email.js";
-import { encodeBase64Url } from "./utils";
+import { encodeBase64Url } from "./utils.js";
 
 // Tool definition
 export const REPLY_EMAIL_TOOL: Tool = {

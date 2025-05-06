@@ -23,7 +23,7 @@ export interface TavilySearchResponse {
 
 // Tool definition
 export const SEARCH_TOOL: Tool = {
-  name: "tavily_search",
+  name: "tavily-search",
   description:
     "A powerful web search tool that provides comprehensive, real-time results using Tavily's AI search engine. " +
     "Returns relevant web content with customizable parameters for result count, content type, and domain filtering. " +

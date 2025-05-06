@@ -1,5 +1,5 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
-import { BraveWeb, performWebSearch } from "./brave-web-search";
+import { BraveWeb, performWebSearch } from "./brave_web_search";
 
 // Type definitions
 export interface BraveLocation {
@@ -34,7 +34,7 @@ export interface BraveDescription {
 
 // Tool definition
 export const LOCAL_SEARCH_TOOL: Tool = {
-  name: "brave_local_search",
+  name: "brave-local-search",
   description:
     "Searches for local businesses and places using Brave's Local Search API. " +
     "Best for queries related to physical locations, businesses, restaurants, services, etc. " +

@@ -12,7 +12,7 @@ export interface TavilyExtractResponse {
 
 // Tool definition
 export const EXTRACT_TOOL: Tool = {
-  name: "tavily_extract",
+  name: "tavily-extract",
   description:
     "A powerful web content extraction tool that retrieves and processes raw content from specified URLs, " +
     "ideal for data collection, content analysis, and research tasks.",
