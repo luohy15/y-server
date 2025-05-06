@@ -22,7 +22,7 @@ export interface BraveWeb {
 
 // Tool definition
 export const WEB_SEARCH_TOOL: Tool = {
-  name: "brave_web_search",
+  name: "brave-web-search",
   description:
     "Performs a web search using the Brave Search API, ideal for general queries, news, articles, and online content. " +
     "Use this for broad information gathering, recent events, or when you need diverse web sources. " +

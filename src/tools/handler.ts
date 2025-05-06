@@ -249,11 +249,12 @@ export async function handleToolCall(name: string, args: unknown, apiKey: string
 /**
  * Get all available tools
  * 
+ * @param integrations - Optional list of integration prefixes to filter tools by
  * @returns Array of tool definitions
  */
-export function getTools() {
-  // Export all tools for easy access
-  return [
+export function getTools(integrations?: string[]) {
+  // Get all tools
+  const allTools = [
     // Editor tools
     READ_FILE_TOOL,
     WRITE_TO_FILE_TOOL,
@@ -282,4 +283,18 @@ export function getTools() {
     // Image generation tools
     IMAGE_GENERATE_TOOL,
   ];
+
+  // If no integrations specified, return no tools
+  if (!integrations || integrations.length === 0) {
+    return [];
+  }
+
+  // Filter tools based on the integration prefixes
+  return allTools.filter(tool => {
+    const name = tool.name;
+    // Check if any of the allowed integrations match the tool name prefix
+    return integrations.some(integration => 
+      name.startsWith(integration + '-')
+    );
+  });
 }

@@ -32,21 +32,27 @@ export class StreamableHTTPServerTransport {
         headers: {
           "Access-Control-Allow-Origin": "*",
           "Access-Control-Allow-Methods": "POST, DELETE, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Integrations",
         },
       });
     }
 
-    // Extract Bearer token from Authorization header or use default API key
-    let token = env.DEFAULT_API_KEY;
+    // Extract Bearer token from Authorization header
+    let token = "";
     const authHeader = request.headers.get("Authorization");
     if (authHeader && authHeader.startsWith("Bearer ")) {
       token = authHeader.substring(7); // Remove 'Bearer ' prefix
     }
+    
+    // Extract integrations from X-Integrations header
+    const integrationsHeader = request.headers.get("X-Integrations");
+    const integrations = integrationsHeader ? 
+      integrationsHeader.split(',').map((i: string) => i.trim()).filter(Boolean) : 
+      [];
 
     switch (request.method) {
       case "POST":
-        return this.handlePostRequest(request, env, token);
+        return this.handlePostRequest(request, env, token, integrations);
       case "DELETE":
         return this.handleDeleteRequest();
       default:
@@ -59,7 +65,7 @@ export class StreamableHTTPServerTransport {
     }
   }
 
-  private async handlePostRequest(request: Request, env: Env, token: string): Promise<Response> {
+  private async handlePostRequest(request: Request, env: Env, token: string, integrations: string[]): Promise<Response> {
     if (!request.headers.get("content-type")?.includes("application/json")) {
       return this.errorResponse(415, {
         code: -32000,
@@ -93,7 +99,7 @@ export class StreamableHTTPServerTransport {
       const responses: JSONRPCMessage[] = [];
       for (const message of messages) {
         if (isJSONRPCRequest(message)) {
-          const response = await this.handleJsonRpcRequest(message, env, token);
+          const response = await this.handleJsonRpcRequest(message, env, token, integrations);
           responses.push(response);
           if (this.onmessage) {
             this.onmessage(message);
@@ -128,7 +134,7 @@ export class StreamableHTTPServerTransport {
     return new Response(null, { status: 200 });
   }
 
-  private async handleJsonRpcRequest(request: JSONRPCRequest, env: Env, token: string): Promise<JSONRPCResponse | JSONRPCError> {
+  private async handleJsonRpcRequest(request: JSONRPCRequest, env: Env, token: string, integrations: string[]): Promise<JSONRPCResponse | JSONRPCError> {
     try {
       switch (request.method) {
         case "initialize": {
@@ -155,10 +161,11 @@ export class StreamableHTTPServerTransport {
 
         case "tools/list": {
           ListToolsRequestSchema.parse(request);
+
           return {
             jsonrpc: "2.0",
             result: {
-              tools: getTools(),
+              tools: getTools(integrations),
             },
             id: request.id,
           };
