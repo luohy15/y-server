@@ -52,9 +52,20 @@ function trimMatch(original: string, search: string, startIdx: number): [number,
 }
 
 /**
+ * Normalizes newlines by replacing escaped newline sequences (\\n) with actual newlines (\n).
+ */
+function normalizeNewlines(content: string): string {
+  return content.replace(/\\n/g, "\n");
+}
+
+/**
  * Applies a diff in SEARCH/REPLACE format to the original content.
+ * Handles both actual newlines (\n) and escaped newlines (\\n).
  */
 export async function applyDiff(diff: string, original: string, isFinal: boolean): Promise<string> {
+  // Normalize the original content to handle escaped newlines
+  diff = normalizeNewlines(diff);
+  original = normalizeNewlines(original);
   let result = "";
   let lastIdx = 0;
   
