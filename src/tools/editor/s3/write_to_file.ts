@@ -1,5 +1,6 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
-import { parseS3ApiKey, parseS3Path, generateS3Headers } from "./s3_utils";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { parseS3ApiKey, parseS3Path, createS3Client } from "./s3_utils";
 
 // Type definitions
 export interface S3WriteFileArgs {
@@ -57,8 +58,8 @@ export function isS3WriteFileArgs(args: unknown): args is S3WriteFileArgs {
 export async function writeS3File(path: string, content: string, apiKey: string): Promise<string> {
   try {
     // Parse API key and path
-    const { accessKeyId, secretAccessKey, endpoint, bucket: defaultBucket } = parseS3ApiKey(apiKey);
-    const { bucket, key } = parseS3Path(path, defaultBucket);
+    const credentials = parseS3ApiKey(apiKey);
+    const { bucket, key } = parseS3Path(path, credentials.bucket);
     
     // Detect content type (simplified)
     let contentType = 'text/plain';
@@ -67,65 +68,39 @@ export async function writeS3File(path: string, content: string, apiKey: string)
     else if (path.endsWith('.js')) contentType = 'application/javascript';
     else if (path.endsWith('.css')) contentType = 'text/css';
     
-    // Generate headers
-    const headers = await generateS3Headers(
-      'PUT',
-      endpoint,
-      bucket,
-      key,
-      accessKeyId,
-      secretAccessKey,
-      content,
-      contentType
-    );
-    
-    // Add content type to headers
-    headers['Content-Type'] = contentType;
-    
-    // Put object to S3
-    const url = `${endpoint}/${bucket}/${key}`;
+    // Create S3 client
+    const s3Client = createS3Client(credentials);
     
     // Debug: Log request details
     console.log(`[DEBUG] Sending S3 PUT request:
-    - URL: ${url}
+    - Bucket: ${bucket}
+    - Key: ${key}
     - Content Length: ${content.length} bytes
     - Content Type: ${contentType}
-    - Headers count: ${Object.keys(headers).length}
     `);
     
-    // More detailed debug logging for authentication troubleshooting
-    console.log(`[DEBUG] S3 request headers: ${JSON.stringify({
-      ...headers,
-      // Show truncated auth header to avoid exposing full signature
-      'Authorization': headers['Authorization'].substring(0, 50) + '...'
-    }, null, 2)}`);
-    
-    const response = await fetch(url, {
-      method: 'PUT',
-      headers,
-      body: content
+    // Create command
+    const command = new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: content,
+      ContentType: contentType
     });
     
-    // Debug: Log response status
-    const responseHeaders: Record<string, string> = {};
-    response.headers.forEach((value, name) => {
-      responseHeaders[name] = value;
-    });
+    // Execute the command
+    const response = await s3Client.send(command);
     
+    // Debug: Log response
     console.log(`[DEBUG] S3 response received:
-    - Status: ${response.status} ${response.statusText}
-    - Headers: ${JSON.stringify(responseHeaders)}
+    - ETag: ${response.ETag}
+    - Version ID: ${response.VersionId || 'none'}
     `);
-    
-    if (!response.ok) {
-      console.error(`[DEBUG] S3 request failed with status ${response.status} ${response.statusText}`);
-      throw new Error(`S3 error: ${response.status} ${response.statusText}`);
-    }
     
     console.log(`[DEBUG] Successfully wrote to S3: ${path}`);
     
     return `Successfully wrote ${content.length} bytes to ${path}`;
   } catch (error) {
+    console.error(`[DEBUG] Error writing to S3: ${error instanceof Error ? error.message : String(error)}`);
     throw new Error(`Failed to write file to S3: ${error instanceof Error ? error.message : String(error)}`);
   }
 }

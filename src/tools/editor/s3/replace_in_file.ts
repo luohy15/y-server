@@ -1,31 +1,11 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { readS3File } from "./read_file";
 import { writeS3File } from "./write_to_file";
-import { applyDiff as applyDiffFunc } from "../diff";
+import { applyDiff } from "../diff";
 
 // Simple debug logger
 function debugLog(message: string, ...args: any[]): void {
   console.log(`[S3_REPLACE_DEBUG] ${message}`, ...args);
-}
-
-/**
- * Applies a diff to the original content.
- * 
- * @param originalContent - The original file content
- * @param diff - Diff string with SEARCH/REPLACE blocks
- * @returns Object containing new content and whether it was modified
- */
-async function applyDiff(originalContent: string, diff: string): Promise<{ content: string; modified: boolean }> {
-  // Process the entire diff at once (isFinal=true)
-  const newContent = await applyDiffFunc(diff, originalContent, true);
-  
-  // Determine if content was modified by comparing original and new content
-  const modified = originalContent !== newContent;
-  
-  return {
-    content: newContent,
-    modified
-  };
 }
 
 // Type definitions
@@ -117,9 +97,13 @@ export async function replaceInS3File(path: string, diff: string, apiKey: string
     debugLog("Reading current content from S3");
     const currentContent = await readS3File(path, apiKey);
     
-    // Apply diff
+    // Apply diff directly using the imported applyDiff
     debugLog("Applying diff to content");
-    const { content: newContent, modified } = await applyDiff(currentContent, diff);
+    // Process the entire diff at once (isFinal=true)
+    const newContent = await applyDiff(diff, currentContent, true);
+    
+    // Determine if content was modified by comparing original and new content
+    const modified = currentContent !== newContent;
     
     if (!modified) {
       debugLog("No changes needed, content matches search patterns");

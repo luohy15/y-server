@@ -2,6 +2,7 @@
  * Utility functions for S3 operations
  * Used by the editor tools to interact with S3 compatible storage
  */
+import { S3Client, S3ClientConfig } from "@aws-sdk/client-s3";
 
 /**
  * Parses S3 API key in the format https://aws_access_key_id:aws_secret_access_key@endpoint_url
@@ -14,6 +15,7 @@ export function parseS3ApiKey(apiKey: string): {
   secretAccessKey: string;
   endpoint: string;
   bucket?: string;
+  region: string;
 } {
   // Debug: Log input API key (redacted for security)
   const redactedApiKey = apiKey.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@');
@@ -33,14 +35,20 @@ export function parseS3ApiKey(apiKey: string): {
     const pathParts = url.pathname.split('/').filter(Boolean);
     const bucket = pathParts.length > 0 ? pathParts[0] : undefined;
     
+    // Set the region (extract from host if possible, or default to us-east-1)
+    const region = url.hostname.includes('amazonaws.com') 
+      ? url.hostname.split('.')[1] || 'us-east-1'
+      : 'us-east-1';
+    
     // Debug: Log extracted information (without exposing secret key)
     console.log(`[DEBUG] Parsed S3 credentials: 
       - Access Key ID: ${accessKeyId.substring(0, 4)}***
       - Endpoint: ${endpoint}
+      - Region: ${region}
       - Default Bucket: ${bucket || 'none'}
     `);
     
-    return { accessKeyId, secretAccessKey, endpoint, bucket };
+    return { accessKeyId, secretAccessKey, endpoint, bucket, region };
   } catch (error) {
     // Debug: Log the error
     console.error(`[DEBUG] Error parsing S3 API key: ${error instanceof Error ? error.message : String(error)}`);
@@ -80,202 +88,45 @@ export function parseS3Path(path: string, defaultBucket?: string): { bucket: str
 }
 
 /**
- * Generate AWS Signature v4 for S3 API requests
+ * Creates an S3 client with the given credentials
  * 
- * @param method - HTTP method (GET, PUT, etc.)
- * @param region - AWS region
- * @param bucket - S3 bucket name
- * @param key - S3 object key
- * @param accessKeyId - AWS access key ID
- * @param secretAccessKey - AWS secret access key
- * @param payload - Request payload (for PUT requests)
- * @param contentType - Content-Type header (for PUT requests)
- * @returns Object with headers needed for the request
+ * @param credentials - S3 credentials parsed from API key
+ * @returns Configured S3 client
  */
-export async function generateS3Headers(
-  method: string,
-  endpoint: string,
-  bucket: string,
-  key: string,
-  accessKeyId: string,
-  secretAccessKey: string,
-  payload: string = '',
-  contentType: string = ''
-): Promise<Record<string, string>> {
-  // Parse the endpoint to get the host
-  const url = new URL(endpoint);
-  const host = url.host;
-  
+export function createS3Client({
+  accessKeyId,
+  secretAccessKey,
+  endpoint,
+  region
+}: {
+  accessKeyId: string;
+  secretAccessKey: string;
+  endpoint: string;
+  region: string;
+}): S3Client {
   // Determine if we're using a non-AWS S3 endpoint (like Cloudflare R2)
-  const isNonAwsEndpoint = !host.includes('amazonaws.com');
+  const url = new URL(endpoint);
+  const isNonAwsEndpoint = !url.hostname.includes('amazonaws.com');
   
-  // Use path-style addressing for non-AWS endpoints like Cloudflare R2
-  const usePathStyle = isNonAwsEndpoint;
-  
-  // Log the addressing style being used
-  console.log(`[DEBUG] Using ${usePathStyle ? 'path-style' : 'virtual-hosted style'} addressing for ${host}`);
-  
-  // Set the region (extract from host if possible, or default to us-east-1)
-  const region = host.includes('amazonaws.com') 
-    ? host.split('.')[1] || 'us-east-1'
-    : 'us-east-1';
-  
-  // Get current timestamp
-  const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
-  const date = amzDate.substring(0, 8);
-  
-  // Calculate payload hash
-  const payloadHash = await sha256(payload);
-  
-  // Prepare canonical request
-  // For path-style URLs, the key is prefixed with the bucket name
-  const canonicalUri = usePathStyle ? `/${bucket}/${key}` : `/${key}`;
-  const canonicalQueryString = '';
-  
-  // For path-style URLs, don't prepend the bucket to the host
-  const hostHeader = usePathStyle ? host : `${bucket}.${host}`;
-  
-  const canonicalHeaders = [
-    `host:${hostHeader}`,
-    `x-amz-content-sha256:${payloadHash}`,
-    `x-amz-date:${amzDate}`
-  ].join('\n') + '\n';
-  
-  const signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
-  
-  const canonicalRequest = [
-    method,
-    canonicalUri,
-    canonicalQueryString,
-    canonicalHeaders,
-    signedHeaders,
-    payloadHash
-  ].join('\n');
-  
-  // Calculate signature
-  const algorithm = 'AWS4-HMAC-SHA256';
-  const scope = `${date}/${region}/s3/aws4_request`;
-  
-  const stringToSign = [
-    algorithm,
-    amzDate,
-    scope,
-    await sha256(canonicalRequest)
-  ].join('\n');
-  
-  const signingKey = await getSignatureKey(secretAccessKey, date, region, 's3');
-  const signature = await hmacSha256(signingKey, stringToSign, 'hex');
-  
-  // Build authorization header
-  const authorizationHeader = [
-    `${algorithm} Credential=${accessKeyId}/${scope}`,
-    `SignedHeaders=${signedHeaders}`,
-    `Signature=${signature}`
-  ].join(', ');
-  
-  // Construct headers
-  const headers: Record<string, string> = {
-    'Authorization': authorizationHeader,
-    'x-amz-content-sha256': payloadHash,
-    'x-amz-date': amzDate
+  // Configure the S3 client
+  const clientConfig: S3ClientConfig = {
+    region,
+    credentials: {
+      accessKeyId,
+      secretAccessKey
+    }
   };
   
-  // Add Content-Type if provided
-  if (contentType) {
-    headers['Content-Type'] = contentType;
+  // For non-AWS endpoints, we need to specify the custom endpoint
+  // and use path-style addressing
+  if (isNonAwsEndpoint) {
+    clientConfig.endpoint = endpoint;
+    clientConfig.forcePathStyle = true;
+    
+    console.log(`[DEBUG] Using custom S3 endpoint: ${endpoint} with path-style addressing`);
+  } else {
+    console.log(`[DEBUG] Using standard AWS S3 endpoint in region: ${region}`);
   }
   
-  return headers;
-}
-
-/**
- * Calculate SHA-256 hash
- * 
- * @param message - Message to hash
- * @returns Hex-encoded hash
- */
-export async function sha256(message: string): Promise<string> {
-  const msgBuffer = new TextEncoder().encode(message);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-/**
- * Calculate HMAC-SHA256
- * 
- * @param key - Key as ArrayBuffer or Uint8Array
- * @param message - Message to sign
- * @param outputFormat - Output format (hex or binary)
- * @returns Signed message in the specified format
- */
-export async function hmacSha256(
-  key: ArrayBuffer | Uint8Array,
-  message: string,
-  outputFormat: 'hex' | 'binary' = 'binary'
-): Promise<string | ArrayBuffer> {
-  const keyObj = await crypto.subtle.importKey(
-    'raw',
-    key instanceof ArrayBuffer ? key : key.buffer,
-    { name: 'HMAC', hash: { name: 'SHA-256' } },
-    false,
-    ['sign']
-  );
-  
-  const signature = await crypto.subtle.sign(
-    'HMAC',
-    keyObj,
-    new TextEncoder().encode(message)
-  );
-  
-  if (outputFormat === 'hex') {
-    return Array.from(new Uint8Array(signature))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-  }
-  
-  return signature;
-}
-
-/**
- * Get AWS Signature v4 signing key
- * 
- * @param key - AWS secret key
- * @param dateStamp - Date stamp in format YYYYMMDD
- * @param regionName - AWS region name
- * @param serviceName - AWS service name
- * @returns Signing key as ArrayBuffer
- */
-export async function getSignatureKey(
-  key: string,
-  dateStamp: string,
-  regionName: string,
-  serviceName: string
-): Promise<ArrayBuffer> {
-  const kDate = await hmacSha256(
-    new TextEncoder().encode(`AWS4${key}`),
-    dateStamp,
-    'binary'
-  ) as ArrayBuffer;
-  
-  const kRegion = await hmacSha256(
-    kDate,
-    regionName,
-    'binary'
-  ) as ArrayBuffer;
-  
-  const kService = await hmacSha256(
-    kRegion,
-    serviceName,
-    'binary'
-  ) as ArrayBuffer;
-  
-  const kSigning = await hmacSha256(
-    kService,
-    'aws4_request',
-    'binary'
-  ) as ArrayBuffer;
-  
-  return kSigning;
+  return new S3Client(clientConfig);
 }

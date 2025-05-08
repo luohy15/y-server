@@ -1,5 +1,6 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
-import { parseS3ApiKey, parseS3Path, generateS3Headers } from "./s3_utils";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { parseS3ApiKey, parseS3Path, createS3Client } from "./s3_utils";
 
 // Type definitions
 export interface S3ReadFileArgs {
@@ -54,65 +55,68 @@ export async function readS3File(path: string, apiKey: string): Promise<string> 
   
   try {
     // Parse API key and path
-    const { accessKeyId, secretAccessKey, endpoint, bucket: defaultBucket } = parseS3ApiKey(apiKey);
-    const { bucket, key } = parseS3Path(path, defaultBucket);
+    const credentials = parseS3ApiKey(apiKey);
+    const { bucket, key } = parseS3Path(path, credentials.bucket);
     
     // Debug: Log parsed bucket and key
     console.log(`[DEBUG] Parsed S3 path: 
     - Bucket: ${bucket}
     - Key: ${key}
-    - Using endpoint: ${endpoint}
+    - Using endpoint: ${credentials.endpoint}
     `);
     
-    // Generate headers
-    const headers = await generateS3Headers(
-      'GET',
-      endpoint,
-      bucket,
-      key,
-      accessKeyId,
-      secretAccessKey
-    );
+    // Create S3 client
+    const s3Client = createS3Client(credentials);
     
-    // Get object from S3
-    const url = `${endpoint}/${bucket}/${key}`;
+    // Create GetObject command
+    const command = new GetObjectCommand({
+      Bucket: bucket,
+      Key: key
+    });
     
     // Debug: Log request details
-    console.log(`[DEBUG] Sending S3 request:
-    - Method: GET
-    - URL: ${url}
-    - Headers count: ${Object.keys(headers).length}
+    console.log(`[DEBUG] Sending S3 GetObject request:
+    - Bucket: ${bucket}
+    - Key: ${key}
     `);
     
-    // More detailed debug logging for authentication troubleshooting
-    console.log(`[DEBUG] S3 request headers: ${JSON.stringify({
-      ...headers,
-      // Show truncated auth header to avoid exposing full signature
-      'Authorization': headers['Authorization'].substring(0, 50) + '...'
-    }, null, 2)}`);
+    // Execute the command
+    const response = await s3Client.send(command);
     
-    const response = await fetch(url, {
-      method: 'GET',
-      headers
-    });
-    
-    // Debug: Log response status
-    const responseHeaders: Record<string, string> = {};
-    response.headers.forEach((value, name) => {
-      responseHeaders[name] = value;
-    });
-    
+    // Log response details
     console.log(`[DEBUG] S3 response received:
-    - Status: ${response.status} ${response.statusText}
-    - Headers: ${JSON.stringify(responseHeaders)}
+    - Content Type: ${response.ContentType}
+    - Content Length: ${response.ContentLength}
+    - ETag: ${response.ETag}
     `);
     
-    if (!response.ok) {
-      console.error(`[DEBUG] S3 request failed with status ${response.status} ${response.statusText}`);
-      throw new Error(`S3 error: ${response.status} ${response.statusText}`);
+    // Convert stream to string
+    if (!response.Body) {
+      throw new Error('Response body is empty');
     }
     
-    const content = await response.text();
+    const streamReader = response.Body.transformToWebStream();
+    const reader = streamReader.getReader();
+    const chunks: Uint8Array[] = [];
+    
+    let done = false;
+    while (!done) {
+      const { value, done: doneReading } = await reader.read();
+      done = doneReading;
+      if (value) {
+        chunks.push(value);
+      }
+    }
+    
+    const allChunks = new Uint8Array(chunks.reduce((acc, chunk) => acc + chunk.length, 0));
+    let position = 0;
+    
+    for (const chunk of chunks) {
+      allChunks.set(chunk, position);
+      position += chunk.length;
+    }
+    
+    const content = new TextDecoder().decode(allChunks);
     console.log(`[DEBUG] Successfully read ${content.length} bytes from S3`);
     
     return content;
