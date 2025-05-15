@@ -4,7 +4,7 @@ A Cloudflare Worker-based MCP (Model Context Protocol) Server with streamable HT
 
 This server is designed to work with [y-gui](https://github.com/luohy15/y-gui), a web-based graphical interface for AI chat interactions with powerful MCP integrations.
 
-## Overview
+## 🔍 Overview
 
 y-server is designed to extend AI capabilities through the Model Context Protocol by providing a suite of tools that allow AI assistants to:
 
@@ -15,37 +15,37 @@ y-server is designed to extend AI capabilities through the Model Context Protoco
 - Search the web (Brave Search, Tavily)
 - Edit and manage files (S3 storage)
 
-## Features
+## ✨ Features
 
-### Calendar Tools
+### 📅 Calendar Tools
 - Create, read, update, and delete Google Calendar events
 
-### Email Tools
+### 📧 Email Tools
 - Query, read, and reply to emails via Gmail
 - Create and manage email drafts
 - Handle email attachments
 
-### Fetch & Scrape Tools
+### 🌐 Fetch & Scrape Tools
 - Cloudflare-powered web fetching
 - Firecrawl web scraping capabilities
 
-### Image Tools
+### 🖼️ Image Tools
 - Image generation and routing
 
-### Search Tools
+### 🔎 Search Tools
 - Brave local and web search
 - Tavily search and information extraction
 
-### Editor Tools
+### 📝 Editor Tools
 - S3-based file operations (read, write, replace)
 
-## Installation
+## 📦 Installation
 
-### Prerequisites
+### 📋 Prerequisites
 - Node.js (latest LTS version recommended)
 - Cloudflare account with Workers and R2 access
 
-### Setup
+### 🔧 Setup
 1. Clone the repository
 ```bash
 git clone https://github.com/yourusername/y-server.git
@@ -59,9 +59,9 @@ npm install
 
 3. Configure your environment variables in the Cloudflare dashboard or using `.dev.vars` for local development
 
-## Configuration
+## ⚙️ Configuration
 
-### Cloudflare Worker Configuration
+### ☁️ Cloudflare Worker Configuration
 The project uses `wrangler.toml` for Cloudflare Worker configuration:
 
 ```toml
@@ -80,14 +80,14 @@ ip = "localhost"
 local_protocol = "http"
 ```
 
-### Required Environment Variables
+### 🔐 Required Environment Variables
 - `CLOUDFLARE_ACCOUNT_ID`: Your Cloudflare account ID
 - `CLOUDFLARE_BROWSER_RENDER_API_TOKEN`: API token for Cloudflare Browser Rendering
 - Other service-specific credentials (Google API, Brave API, etc.)
 
-## Development
+## 💻 Development
 
-### Local Development
+### 🏠 Local Development
 Start the development server:
 ```bash
 npm run dev
@@ -95,23 +95,23 @@ npm run dev
 
 This will start the worker on http://localhost:8788
 
-### Build
+### 🏗️ Build
 Build the project:
 ```bash
 npm run build
 ```
 
-### Deploy
+### 🚀 Deploy
 Deploy to Cloudflare Workers:
 ```bash
 npm run deploy
 ```
 
-## MCP Integration
+## 🔌 MCP Integration
 
 This server implements the Model Context Protocol, allowing AI assistants to use the provided tools through a standardized interface. It uses a streamable HTTP transport that enables efficient communication with AI models.
 
-### Integration with y-gui
+### 🧩 Integration with y-gui
 
 y-server is designed to work as an MCP server for [y-gui](https://github.com/luohy15/y-gui), a web-based graphical interface for AI chat interactions. The y-gui client provides:
 
@@ -132,7 +132,7 @@ For more information, visit the [y-gui repository](https://github.com/luohy15/y-
 
 There's also a CLI version available: [y-cli](https://github.com/luohy15/y-cli).
 
-## Project Structure
+## 📁 Project Structure
 ```
 src/
 ├── index.ts                 # Main entry point
@@ -147,10 +147,10 @@ src/
 └── types/                   # TypeScript type definitions
 ```
 
-## License
+## 🤝 Contributing
 
-[Add your license here]
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-## Contributing
+## 📄 License
 
-[Add contribution guidelines here]
+This project is licensed under the MIT License - see the LICENSE file for details.
