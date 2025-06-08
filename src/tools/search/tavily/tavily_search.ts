@@ -124,7 +124,7 @@ export function isTavilySearchArgs(args: unknown): args is {
  * @param query - The search query
  * @param params - Additional search parameters
  * @param apiKey - Tavily API key
- * @returns Formatted string with search results
+ * @returns Original JSON response as a string
  */
 export async function performTavilySearch(
   query: string, 
@@ -186,62 +186,5 @@ export async function performTavilySearch(
   }
 
   const data = await response.json() as TavilySearchResponse;
-  return formatSearchResults(data);
-}
-
-/**
- * Formats search results into a readable string
- * 
- * @param response - The Tavily API response
- * @returns Formatted string with search results
- */
-function formatSearchResults(response: TavilySearchResponse): string {
-  const output: string[] = [];
-
-  // Include answer if available
-  if (response.answer) {
-    output.push(`Answer: ${response.answer}`);
-    output.push('\nSources:');
-    response.results.forEach(result => {
-      output.push(`- ${result.title}: ${result.url}`);
-    });
-    output.push('');
-  }
-
-  // Format detailed search results
-  output.push('Detailed Results:');
-  response.results.forEach((result, index) => {
-    output.push(`\n[${index + 1}] Title: ${result.title}`);
-    output.push(`URL: ${result.url}`);
-    output.push(`Content: ${result.content}`);
-    if (result.raw_content) {
-      output.push(`Raw Content: ${result.raw_content.substring(0, 300)}...`);
-    }
-    if (result.published_date) {
-      output.push(`Published: ${result.published_date}`);
-    }
-    output.push(`Relevance Score: ${result.score}`);
-  });
-
-  // Include follow-up questions if available
-  if (response.follow_up_questions && response.follow_up_questions.length > 0) {
-    output.push('\nFollow-up Questions:');
-    response.follow_up_questions.forEach((question, index) => {
-      output.push(`- ${question}`);
-    });
-  }
-
-  // Include images if available
-  if (response.images && response.images.length > 0) {
-    output.push('\nRelated Images:');
-    response.images.forEach((image, index) => {
-      if (typeof image === 'string') {
-        output.push(`- ${image}`);
-      } else {
-        output.push(`- ${image.url}${image.description ? ` (${image.description})` : ''}`);
-      }
-    });
-  }
-
-  return output.join('\n');
+  return JSON.stringify(data);
 }

@@ -31,7 +31,7 @@ export class StreamableHTTPServerTransport {
       return new Response(null, {
         headers: {
           "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "POST, DELETE, OPTIONS",
+          "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
           "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Integrations",
         },
       });
@@ -51,6 +51,8 @@ export class StreamableHTTPServerTransport {
       [];
 
     switch (request.method) {
+      case "GET":
+        return this.handleGetRequest(request);
       case "POST":
         return this.handlePostRequest(request, env, token, integrations);
       case "DELETE":
@@ -60,7 +62,7 @@ export class StreamableHTTPServerTransport {
           code: -32000,
           message: "Method not allowed",
         }, {
-          "Allow": "POST, DELETE, OPTIONS"
+          "Allow": "GET, POST, DELETE, OPTIONS"
         });
     }
   }
@@ -124,6 +126,40 @@ export class StreamableHTTPServerTransport {
         data: String(error),
       });
     }
+  }
+
+  private async handleGetRequest(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    
+    if (url.pathname === "/integrations") {
+      // Return the list of available integrations
+      const availableIntegrations = [
+        'google-gmail',
+        'google-calendar',
+        'brave',
+        'tavily',
+        's3',
+        'image-router',
+        'exa'
+      ];
+      
+      return new Response(
+        JSON.stringify({ integrations: availableIntegrations }),
+        { 
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*"
+          }
+        }
+      );
+    }
+    
+    // Handle unknown paths
+    return this.errorResponse(404, {
+      code: -32000,
+      message: "Not found",
+    });
   }
 
   private async handleDeleteRequest(): Promise<Response> {

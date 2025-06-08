@@ -1,8 +1,15 @@
 import { ErrorCode, McpError, Tool } from "@modelcontextprotocol/sdk/types.js";
-import { WEB_SEARCH_TOOL, performWebSearch, isBraveWebSearchArgs } from "./search/brave/brave_web_search";
-import { LOCAL_SEARCH_TOOL, performLocalSearch, isBraveLocalSearchArgs } from "./search/brave/brave_local_search";
-import { SEARCH_TOOL, performTavilySearch, isTavilySearchArgs } from "./search/tavily/tavily_search";
+import { WEB_SEARCH_TOOL as BRAVE_SEARCH_TOOL, performWebSearch, isBraveWebSearchArgs } from "./search/brave/brave_web_search";
+import { SEARCH_TOOL as TAVILY_SEARCH_TOOL, performTavilySearch, isTavilySearchArgs } from "./search/tavily/tavily_search";
 import { EXTRACT_TOOL, performTavilyExtract, isTavilyExtractArgs } from "./search/tavily/tavily_extract";
+import { 
+  SEARCH_TOOL as EXA_SEARCH_TOOL, 
+  CONTENTS_TOOL as EXA_CONTENTS_TOOL,
+  performExaSearch, 
+  isExaSearchArgs,
+  retrieveExaContents,
+  isExaContentsArgs
+} from "./search/exa";
 import { SCRAPE_TOOL, performFirecrawlScrape, isFirecrawlScrapeArgs } from "./fetch/firecrawl/firecrawl_scrape";
 import { CLOUDFLARE_FETCH_TOOL, performCloudfareFetch, isCloudfareFetchArgs } from "./fetch/cloudflare/cloudflare_fetch";
 import { IMAGE_GENERATE_TOOL, performImageGeneration, isImageGenerateArgs } from "./image/image-router/image_router_generate";
@@ -93,13 +100,6 @@ export async function handleToolCall(name: string, args: unknown, apiKey: string
       return performWebSearch(args.query, args.count, apiKey);
     }
 
-    case "brave-local-search": {
-      if (!isBraveLocalSearchArgs(args)) {
-        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for brave-local-search");
-      }
-      return performLocalSearch(args.query, args.count, apiKey);
-    }
-
     case "tavily-search": {
       if (!isTavilySearchArgs(args)) {
         throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for tavily-search");
@@ -128,6 +128,34 @@ export async function handleToolCall(name: string, args: unknown, apiKey: string
         include_raw_content,
         include_domains,
         exclude_domains
+      }, apiKey);
+    }
+
+    case "exa-search": {
+      if (!isExaSearchArgs(args)) {
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for exa-search");
+      }
+      const { query, type, numResults, includeDomains, excludeDomains } = args;
+      return performExaSearch(query, {
+        type,
+        numResults,
+        includeDomains,
+        excludeDomains
+      }, apiKey);
+    }
+    
+    case "exa-contents": {
+      if (!isExaContentsArgs(args)) {
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for exa-contents");
+      }
+      const { urls, text, highlights, summary, livecrawl, subpages, context } = args;
+      return retrieveExaContents(urls, {
+        text,
+        highlights,
+        summary,
+        livecrawl,
+        subpages,
+        context
       }, apiKey);
     }
 
@@ -244,10 +272,11 @@ export function getTools(integrations?: string[]) {
     REPLACE_IN_FILE_TOOL,
     
     // Search tools
-    WEB_SEARCH_TOOL,
-    LOCAL_SEARCH_TOOL,
-    SEARCH_TOOL,
+    BRAVE_SEARCH_TOOL,
+    TAVILY_SEARCH_TOOL,
     EXTRACT_TOOL,
+    EXA_SEARCH_TOOL,
+    EXA_CONTENTS_TOOL,
     
     // Calendar tools
     GET_CALENDAR_EVENTS_TOOL,

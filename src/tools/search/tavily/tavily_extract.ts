@@ -62,7 +62,7 @@ export function isTavilyExtractArgs(args: unknown): args is {
  * @param urls - Array of URLs to extract content from
  * @param params - Additional extract parameters
  * @param apiKey - Tavily API key
- * @returns Formatted string with extraction results
+ * @returns Original JSON response as a string
  */
 export async function performTavilyExtract(
   urls: string[], 
@@ -101,41 +101,5 @@ export async function performTavilyExtract(
   }
 
   const data = await response.json() as TavilyExtractResponse;
-  return formatExtractResults(data);
-}
-
-/**
- * Formats extraction results into a readable string
- * 
- * @param response - The Tavily API response
- * @returns Formatted string with extraction results
- */
-function formatExtractResults(response: TavilyExtractResponse): string {
-  const output: string[] = [];
-
-  output.push(`Extracted Content from ${response.results.length} URL(s):\n`);
-  
-  response.results.forEach((result, index) => {
-    output.push(`\n[Document ${index + 1}]`);
-    if (result.title) {
-      output.push(`Title: ${result.title}`);
-    }
-    output.push(`URL: ${result.url}`);
-    output.push(`\nContent:\n${result.content}\n`);
-    
-    // Include images if available
-    if (result.images && result.images.length > 0) {
-      output.push('\nImages:');
-      result.images.forEach((image, i) => {
-        output.push(`- ${image}`);
-      });
-    }
-    
-    // Add separator between results
-    if (index < response.results.length - 1) {
-      output.push('\n-------------------------------------------\n');
-    }
-  });
-
-  return output.join('\n');
+  return JSON.stringify(data);
 }
