@@ -12,7 +12,7 @@ y-server is designed to extend AI capabilities through the Model Context Protoco
 - Handle emails (Gmail)
 - Fetch and scrape web content
 - Generate and manipulate images
-- Search the web (Brave Search, Tavily)
+- Search the web (Tavily, Exa, Brave)
 - Edit and manage files (S3 storage)
 
 ## ✨ Features
@@ -33,8 +33,9 @@ y-server is designed to extend AI capabilities through the Model Context Protoco
 - Image generation and routing
 
 ### 🔎 Search Tools
-- Brave local and web search
 - Tavily search and information extraction
+- Exa search and content retrieval
+- Brave web search
 
 ### 📝 Editor Tools
 - S3-based file operations (read, write, replace)
@@ -142,7 +143,7 @@ src/
 │   ├── email/               # Email tools (Gmail)
 │   ├── fetch/               # Web fetch tools
 │   ├── image/               # Image tools
-│   └── search/              # Search tools (Brave, Tavily)
+│   └── search/              # Search tools (Brave, Tavily, Exa)
 ├── transport/               # HTTP transport implementation
 └── types/                   # TypeScript type definitions
 ```
