@@ -1,10 +1,13 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { Sandbox } from "@e2b/code-interpreter";
+import { downloadFromUrl } from "../../../utils/file_utils";
+import { createSandbox, formatError, formatResultWithSandboxInfo } from "../../../utils/e2b_utils";
 
 // Type definitions
 export interface WriteFileParams {
   path: string;
-  content: string;
+  content?: string;
+  url?: string;
   sandboxId?: string; // Optional sandbox ID to resume
 }
 
@@ -13,6 +16,7 @@ export const WRITE_TO_FILE_TOOL: Tool = {
   name: "e2b-write-to-file",
   description: 
     "Request to write content to a file in a secure sandbox environment using E2B. " +
+    "Content can be provided directly or downloaded from a URL (supporting both text and binary files). " +
     "If the file exists, it will be overwritten with the provided content. " +
     "If the file doesn't exist, it will be created. " +
     "All file operations are contained within the sandbox and will not affect the host system. " +
@@ -26,14 +30,18 @@ export const WRITE_TO_FILE_TOOL: Tool = {
       },
       content: {
         type: "string",
-        description: "The content to write to the file. Must provide the COMPLETE intended content of the file."
+        description: "The content to write to the file. Must provide the COMPLETE intended content of the file. Either content or url must be provided."
+      },
+      url: {
+        type: "string",
+        description: "URL to download content from. The content will be downloaded and saved to the specified path. Supports both text and binary files. Either content or url must be provided."
       },
       sandboxId: {
         type: "string",
         description: "Optional ID of a paused sandbox to resume"
       }
     },
-    required: ["path", "content"]
+    required: ["path"]
   }
 };
 
@@ -43,17 +51,27 @@ export function isWriteFileArgs(args: unknown): args is WriteFileParams {
     typeof args !== "object" ||
     args === null ||
     !("path" in args) ||
-    !("content" in args)
+    (!("content" in args) && !("url" in args))
   ) {
     return false;
   }
 
   const params = args as WriteFileParams;
   
-  if (
-    typeof params.path !== "string" ||
-    typeof params.content !== "string"
-  ) {
+  if (typeof params.path !== "string") {
+    return false;
+  }
+
+  // Either content or url must be provided, but not both
+  if (params.content !== undefined && params.url !== undefined) {
+    return false;
+  }
+
+  if (params.content !== undefined && typeof params.content !== "string") {
+    return false;
+  }
+
+  if (params.url !== undefined && typeof params.url !== "string") {
     return false;
   }
 
@@ -68,25 +86,7 @@ export function isWriteFileArgs(args: unknown): args is WriteFileParams {
   return true;
 }
 
-/**
- * Creates and initializes an E2B sandbox or resumes an existing one
- * 
- * @param apiKey - E2B API key
- * @param sandboxId - Optional sandbox ID to resume
- * @returns Initialized sandbox instance
- */
-async function getSandbox(apiKey: string, sandboxId?: string): Promise<Sandbox> {
-  if (!apiKey) {
-    throw new Error("API key is required for E2B sandbox");
-  }
 
-  // Create a new sandbox instance or resume an existing one
-  if (sandboxId) {
-    return await Sandbox.resume(sandboxId, {apiKey});
-  } else {
-    return await Sandbox.create({ apiKey });
-  }
-}
 
 /**
  * Writes content to a file in a secure sandbox environment using E2B
@@ -103,13 +103,27 @@ export async function writeFile(
   
   try {
     // Create or resume a sandbox
-    sandbox = await getSandbox(apiKey, params.sandboxId);
+    sandbox = await createSandbox(apiKey, params.sandboxId);
     
     // Store initial sandbox ID
     const initialSandboxId = sandbox.sandboxId;
     
-    // Execute write operation
-    await sandbox.files.write(params.path, params.content);
+    // Execute write operation based on source (direct content or URL)
+    if (params.url) {
+      // Download content from URL as ArrayBuffer
+      const downloadedContent = await downloadFromUrl(params.url);
+      
+      // Write the downloaded content to the file
+      // The files.write method accepts ArrayBuffer directly
+      await sandbox.files.write(params.path, downloadedContent);
+    } else if (params.content) {
+      // Write direct string content
+      await sandbox.files.write(params.path, params.content);
+    } else {
+      // This should never happen due to validation, but added as a safeguard
+      throw new Error("Either content or url must be provided");
+    }
+    
     const result = formatWriteResult(params.path);
     
     // Always pause the sandbox after operation
@@ -118,31 +132,10 @@ export async function writeFile(
     // Add sandbox ID information to the result
     return formatResultWithSandboxInfo(result, initialSandboxId, pausedSandboxId);
   } catch (error) {
-    return `Error in E2B sandbox: ${error instanceof Error ? error.message : String(error)}`;
+    return formatError(error);
   }
 }
 
-/**
- * Formats the result with sandbox ID information
- * 
- * @param result - The operation result
- * @param initialSandboxId - The initial sandbox ID
- * @param pausedSandboxId - The sandbox ID after pausing
- * @returns Formatted result with sandbox information
- */
-function formatResultWithSandboxInfo(
-  result: string,
-  initialSandboxId: string,
-  pausedSandboxId: string
-): string {
-  const sandboxInfo = [
-    `Initial Sandbox ID: ${initialSandboxId}`,
-    `Sandbox paused with ID: ${pausedSandboxId}`,
-    "This ID can be used to resume the sandbox later."
-  ];
-  
-  return `${result}\n\n${sandboxInfo.join("\n")}`;
-}
 
 /**
  * Formats the result of a write operation

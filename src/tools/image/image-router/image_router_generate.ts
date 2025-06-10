@@ -1,5 +1,6 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { Env } from "../../../types/index.js";
+import { uploadToR2, base64ToArrayBuffer } from "../../../utils/r2_utils";
 
 // Type definitions
 export interface ImageGenerationResponse {
@@ -12,54 +13,17 @@ export interface ImageGenerationResponse {
 }
 
 /**
- * Generate a unique filename for an image
- * @param extension - File extension (default: png)
- * @returns A unique filename
- */
-function generateUniqueFilename(extension: string = 'png'): string {
-  const timestamp = Date.now();
-  const randomString = Math.random().toString(36).substring(2, 8);
-  return `y-image-${timestamp}-${randomString}.${extension}`;
-}
-
-/**
- * Convert base64 data to a buffer
- * @param base64Data - Base64 encoded data
- * @returns ArrayBuffer of the decoded data
- */
-function base64ToArrayBuffer(base64Data: string): ArrayBuffer {
-  // Ensure we strip any data URL prefix like "data:image/png;base64,"
-  const base64 = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
-  const binaryString = atob(base64);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes.buffer;
-}
-
-/**
  * Save an image to the R2 bucket
  * @param imageData - Base64 encoded image data
  * @param contentType - The image content type
  * @param env - Cloudflare Worker environment
  * @returns Promise with the URL of the saved image
  */
-async function saveImageToR2(imageData: string, env: Env, contentType: string = 'image/png'): Promise<string> {
-  if (!env.CDN_BUCKET) {
-    throw new Error('R2 bucket not available');
-  }
-  
-  const filename = generateUniqueFilename();
-  const imageBuffer = base64ToArrayBuffer(imageData);
-  
-  await env.CDN_BUCKET.put(filename, imageBuffer, {
-    httpMetadata: {
-      contentType: contentType
-    }
+async function saveImageToR2(imageData: string, env: Env): Promise<string> {
+  return uploadToR2(base64ToArrayBuffer(imageData), env, {
+    prefix: 'y-image',
+    extension: 'png',
   });
-  
-  return `https://cdn.yovy.app/${filename}`;
 }
 
 // Tool definition

@@ -1,5 +1,6 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { Sandbox } from "@e2b/code-interpreter";
+import { createSandbox, formatError, formatResultWithSandboxInfo } from "../../../utils/e2b_utils";
 
 // Type definitions
 export interface ListFilesParams {
@@ -56,25 +57,6 @@ export function isListFilesArgs(args: unknown): args is ListFilesParams {
   return true;
 }
 
-/**
- * Creates and initializes an E2B sandbox or resumes an existing one
- * 
- * @param apiKey - E2B API key
- * @param sandboxId - Optional sandbox ID to resume
- * @returns Initialized sandbox instance
- */
-async function getSandbox(apiKey: string, sandboxId?: string): Promise<Sandbox> {
-  if (!apiKey) {
-    throw new Error("API key is required for E2B sandbox");
-  }
-
-  // Create a new sandbox instance or resume an existing one
-  if (sandboxId) {
-    return await Sandbox.resume(sandboxId, {apiKey});
-  } else {
-    return await Sandbox.create({ apiKey });
-  }
-}
 
 /**
  * Lists files in a directory in a secure sandbox environment using E2B
@@ -91,7 +73,7 @@ export async function listFiles(
   
   try {
     // Create or resume a sandbox
-    sandbox = await getSandbox(apiKey, params.sandboxId);
+    sandbox = await createSandbox(apiKey, params.sandboxId);
     
     // Store initial sandbox ID
     const initialSandboxId = sandbox.sandboxId;
@@ -106,31 +88,10 @@ export async function listFiles(
     // Add sandbox ID information to the result
     return formatResultWithSandboxInfo(result, initialSandboxId, pausedSandboxId);
   } catch (error) {
-    return `Error in E2B sandbox: ${error instanceof Error ? error.message : String(error)}`;
+    return formatError(error);
   }
 }
 
-/**
- * Formats the result with sandbox ID information
- * 
- * @param result - The operation result
- * @param initialSandboxId - The initial sandbox ID
- * @param pausedSandboxId - The sandbox ID after pausing
- * @returns Formatted result with sandbox information
- */
-function formatResultWithSandboxInfo(
-  result: string,
-  initialSandboxId: string,
-  pausedSandboxId: string
-): string {
-  const sandboxInfo = [
-    `Initial Sandbox ID: ${initialSandboxId}`,
-    `Sandbox paused with ID: ${pausedSandboxId}`,
-    "This ID can be used to resume the sandbox later."
-  ];
-  
-  return `${result}\n\n${sandboxInfo.join("\n")}`;
-}
 
 /**
  * Formats the result of a list operation

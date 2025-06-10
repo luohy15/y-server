@@ -1,10 +1,14 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { Sandbox } from "@e2b/code-interpreter";
+import { createSandbox, formatError, formatResultWithSandboxInfo } from "../../../utils/e2b_utils";
+import { uploadToR2 } from "../../../utils/r2_utils";
+import { Env } from "../../../types/index.js";
 
 // Type definitions
 export interface ReadFileParams {
   path: string;
   sandboxId?: string; // Optional sandbox ID to resume
+  upload?: boolean;
 }
 
 // Tool definition
@@ -14,7 +18,8 @@ export const READ_FILE_TOOL: Tool = {
     "Request to read the contents of a file in a secure sandbox environment using E2B. " +
     "Use this when you need to examine the contents of an existing file in the sandbox. " +
     "All file operations are contained within the sandbox and will not affect the host system. " +
-    "Supports sandbox persistence - sandbox is automatically paused after each operation and can be resumed using its ID.",
+    "Supports sandbox persistence - sandbox is automatically paused after each operation and can be resumed using its ID. " +
+    "Optional upload parameter allows uploading the file content to R2 storage.",
   inputSchema: {
     type: "object",
     properties: {
@@ -25,6 +30,10 @@ export const READ_FILE_TOOL: Tool = {
       sandboxId: {
         type: "string",
         description: "Optional ID of a paused sandbox to resume"
+      },
+      upload: {
+        type: "boolean",
+        description: "Optional settings to upload the file to R2 storage",
       }
     },
     required: ["path"]
@@ -55,52 +64,59 @@ export function isReadFileArgs(args: unknown): args is ReadFileParams {
     return false;
   }
 
+  // Validate sandboxId if provided
+  if (
+    params.upload !== undefined && 
+    typeof params.upload !== "boolean"
+  ) {
+    return false;
+  }
+
   return true;
 }
 
-/**
- * Creates and initializes an E2B sandbox or resumes an existing one
- * 
- * @param apiKey - E2B API key
- * @param sandboxId - Optional sandbox ID to resume
- * @returns Initialized sandbox instance
- */
-async function getSandbox(apiKey: string, sandboxId?: string): Promise<Sandbox> {
-  if (!apiKey) {
-    throw new Error("API key is required for E2B sandbox");
-  }
-
-  // Create a new sandbox instance or resume an existing one
-  if (sandboxId) {
-    return await Sandbox.resume(sandboxId, {apiKey});
-  } else {
-    return await Sandbox.create({ apiKey });
-  }
-}
 
 /**
  * Reads file content in a secure sandbox environment using E2B
  * 
  * @param params - The read file operation parameters
  * @param apiKey - E2B API key
+ * @param env - Cloudflare Worker environment, required if upload is specified
  * @returns Output from the read operation
  */
 export async function readFile(
   params: ReadFileParams,
-  apiKey: string
+  apiKey: string,
+  env?: Env
 ): Promise<string> {
   let sandbox: Sandbox | null = null;
   
   try {
     // Create or resume a sandbox
-    sandbox = await getSandbox(apiKey, params.sandboxId);
+    sandbox = await createSandbox(apiKey, params.sandboxId);
     
     // Store initial sandbox ID
     const initialSandboxId = sandbox.sandboxId;
     
-    // Execute read operation
-    const content = await sandbox.files.read(params.path);
-    const result = formatReadResult(params.path, content);
+    let result = `Reading file: ${params.path}\nSandbox ID: ${initialSandboxId}`;
+    const extension = params.path.split('.').pop()?.toLowerCase() || '';
+    // Upload to R2 if requested
+    if (params.upload && env) {
+      // Execute read operation
+      const content = await sandbox.files.read(params.path, {format: "stream"});
+      
+      // Upload the file
+      const cdnUrl = await uploadToR2(content, env, {
+        prefix: 'sandbox-file',
+        extension: extension,
+      });
+      
+      // Add the CDN URL to the result
+      result += `\n\nFile uploaded to CDN: ${cdnUrl}`;
+    } else {
+      const content: string = await sandbox.files.read(params.path, {format: "text"});
+      result += formatReadResult(params.path, content);
+    }
     
     // Always pause the sandbox after operation
     const pausedSandboxId = await sandbox.pause();
@@ -108,31 +124,10 @@ export async function readFile(
     // Add sandbox ID information to the result
     return formatResultWithSandboxInfo(result, initialSandboxId, pausedSandboxId);
   } catch (error) {
-    return `Error in E2B sandbox: ${error instanceof Error ? error.message : String(error)}`;
+    return formatError(error);
   }
 }
 
-/**
- * Formats the result with sandbox ID information
- * 
- * @param result - The operation result
- * @param initialSandboxId - The initial sandbox ID
- * @param pausedSandboxId - The sandbox ID after pausing
- * @returns Formatted result with sandbox information
- */
-function formatResultWithSandboxInfo(
-  result: string,
-  initialSandboxId: string,
-  pausedSandboxId: string
-): string {
-  const sandboxInfo = [
-    `Initial Sandbox ID: ${initialSandboxId}`,
-    `Sandbox paused with ID: ${pausedSandboxId}`,
-    "This ID can be used to resume the sandbox later."
-  ];
-  
-  return `${result}\n\n${sandboxInfo.join("\n")}`;
-}
 
 /**
  * Formats the result of a read operation
@@ -148,4 +143,5 @@ function formatReadResult(path: string, content: string): string {
   output.push(content || "(empty file)");
   
   return output.join("\n\n");
+ 
 }

@@ -1,7 +1,7 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { readS3File } from "../../file/s3/read_file";
 import { writeS3File } from "../../file/s3/write_to_file";
-import { applyDiff } from "../../../utils/file_diff";
+import { applyDiff } from "../../../utils/editor_utils";
 
 // Simple debug logger
 function debugLog(message: string, ...args: any[]): void {

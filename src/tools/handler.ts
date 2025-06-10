@@ -1,8 +1,11 @@
 import { ErrorCode, McpError, Tool } from "@modelcontextprotocol/sdk/types.js";
 import { 
   CODE_TOOL,
+  COMMAND_TOOL,
   executeCode,
-  isCodeArgs
+  isCodeArgs,
+  executeCommand,
+  isCommandArgs
 } from "./sandbox";
 import { 
   E2B_LIST_FILES_TOOL,
@@ -99,7 +102,7 @@ export async function handleToolCall(name: string, args: unknown, apiKey: string
       if (!isS3WriteFileArgs(args)) {
         throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for write-to-file");
       }
-      return writeS3File(args.path, args.content, apiKey);
+      return writeS3File(args.path, args.content, apiKey, args.url);
     }
 
     case "s3-edit-file": {
@@ -279,7 +282,7 @@ export async function handleToolCall(name: string, args: unknown, apiKey: string
       if (!isE2BReadFileArgs(args)) {
         throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for e2b-read-file");
       }
-      return readE2BFile(args, apiKey);
+      return readE2BFile(args, apiKey, env);
     }
 
     case "e2b-write-to-file": {
@@ -294,6 +297,13 @@ export async function handleToolCall(name: string, args: unknown, apiKey: string
         throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for e2b-code");
       }
       return executeCode(args, apiKey);
+    }
+
+    case "e2b-command": {
+      if (!isCommandArgs(args)) {
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for e2b-command");
+      }
+      return executeCommand(args, apiKey);
     }
 
     default:
@@ -348,6 +358,7 @@ export function getTools(integrations?: string[]) {
     E2B_READ_FILE_TOOL,
     E2B_WRITE_TO_FILE_TOOL,
     CODE_TOOL,
+    COMMAND_TOOL,
   ];
 
   // Get tools that don't require authentication (always available)

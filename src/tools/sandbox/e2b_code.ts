@@ -1,11 +1,12 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { Sandbox } from "@e2b/code-interpreter";
-import { createSandbox, formatError } from "../../utils/e2b_common";
+import { createSandbox, formatError, formatResultWithSandboxInfo } from "../../utils/e2b_utils";
 
 // Type definitions for unified code execution
 export interface CodeParams {
   code: string;
   language: "python" | "javascript";
+  sandboxId?: string; // Optional sandbox ID to resume
 }
 
 // Unified tool definition
@@ -13,7 +14,8 @@ export const CODE_TOOL: Tool = {
   name: "e2b-code",
   description: "Executes Python or JavaScript code in a secure sandbox environment using E2B. " +
     "Provides an isolated runtime for running scripts safely. " +
-    "Use this for executing code, testing algorithms, or performing data analysis.",
+    "Use this for executing code, testing algorithms, or performing data analysis. " +
+    "Supports sandbox persistence - sandbox is automatically paused after each operation and can be resumed using its ID.",
   inputSchema: {
     type: "object",
     properties: {
@@ -25,6 +27,10 @@ export const CODE_TOOL: Tool = {
         type: "string",
         enum: ["python", "javascript"],
         description: "Programming language of the code"
+      },
+      sandboxId: {
+        type: "string",
+        description: "Optional ID of a paused sandbox to resume"
       }
     },
     required: ["code", "language"]
@@ -43,10 +49,23 @@ export function isCodeArgs(args: unknown): args is CodeParams {
   }
 
   const params = args as CodeParams;
-  return (
-    typeof params.code === "string" &&
-    (params.language === "python" || params.language === "javascript")
-  );
+  
+  if (
+    typeof params.code !== "string" ||
+    (params.language !== "python" && params.language !== "javascript")
+  ) {
+    return false;
+  }
+
+  // Validate sandboxId if provided
+  if (
+    params.sandboxId !== undefined && 
+    typeof params.sandboxId !== "string"
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 /**
@@ -63,19 +82,28 @@ export async function executeCode(
   let sandbox: Sandbox | null = null;
   
   try {
-    // Create a new sandbox instance
-    sandbox = await createSandbox(apiKey);
+    // Create or resume a sandbox
+    sandbox = await createSandbox(apiKey, params.sandboxId);
+    
+    // Store initial sandbox ID
+    const initialSandboxId = sandbox.sandboxId;
     
     // Execute the code with the specified language
     const result = await sandbox.runCode(params.code, { language: params.language });
     
-    return formatCodeResult(result, params.language);
+    // Format the execution result
+    const formattedResult = formatCodeResult(result, params.language);
+    
+    // Always pause the sandbox after operation
+    const pausedSandboxId = await sandbox.pause();
+    
+    // Add sandbox ID information to the result
+    return formatResultWithSandboxInfo(formattedResult, initialSandboxId, pausedSandboxId);
   } catch (error) {
     return formatError(error);
-  } finally {
-    // Clean up resources - sandbox termination handled by E2B SDK
   }
 }
+
 
 /**
  * Formats the result of a code execution
