@@ -4,41 +4,21 @@ A Cloudflare Worker-based MCP (Model Context Protocol) Server with streamable HT
 
 This server is designed to work with [y-gui](https://github.com/luohy15/y-gui), a web-based graphical interface for AI chat interactions with powerful MCP integrations.
 
-## 🔍 Overview
+## 🧰 Tools
 
-y-server is designed to extend AI capabilities through the Model Context Protocol by providing a suite of tools that allow AI assistants to:
+y-server extends AI capabilities through the Model Context Protocol by providing a suite of tools that allow AI assistants to interact with various external services and APIs:
 
-- Manage calendar events (Google Calendar)
-- Handle emails (Gmail)
-- Fetch and scrape web content
-- Generate and manipulate images
-- Search the web (Tavily, Exa, Brave)
-- Edit and manage files (S3 storage)
-
-## ✨ Features
-
-### 📅 Calendar Tools
-- Create, read, update, and delete Google Calendar events
-
-### 📧 Email Tools
-- Query, read, and reply to emails via Gmail
-- Create and manage email drafts
-- Handle email attachments
-
-### 🌐 Fetch & Scrape Tools
-- Cloudflare-powered web fetching
-- Firecrawl web scraping capabilities
-
-### 🖼️ Image Tools
-- Image generation and routing
-
-### 🔎 Search Tools
-- Tavily search and information extraction
-- Exa search and content retrieval
-- Brave web search
-
-### 📝 Editor Tools
-- S3-based file operations (read, write, replace)
+| Category | Tools | Description |
+|----------|-------|-------------|
+| 📅 Calendar | Google Calendar | Create, read, update, and delete calendar events |
+| 📝 Editor | S3 | S3-based file editing (replace) |
+| 📧 Email | Gmail | Query, read, and reply to emails; Create and manage email drafts; Handle email attachments |
+| 🌐 Fetch & Scrape | Cloudflare, Firecrawl | Cloudflare-powered web fetching; Firecrawl web scraping capabilities |
+| 📂 File | E2B, S3 | File operations (list, read, write) |
+| 💰 Finance | AlphaVantage | Financial data retrieval |
+| 🖼️ Image | Image Router | Image generation and routing |
+| 🧪 Sandbox | E2B | Code execution and command sandboxing |
+| 🔎 Search | Tavily, Exa, Brave | Tavily search and information extraction; Exa search and content retrieval; Brave web search |
 
 ## 📦 Installation
 

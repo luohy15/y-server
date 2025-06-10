@@ -7,6 +7,11 @@ import {
   executeCommand,
   isCommandArgs
 } from "./sandbox";
+import {
+  ALPHAVANTAGE_FOREX_TOOL,
+  isAlphavantageForexArgs,
+  fetchAlphavantageFXData
+} from "./finance/alphavantage";
 import { 
   E2B_LIST_FILES_TOOL,
   E2B_READ_FILE_TOOL,
@@ -306,6 +311,13 @@ export async function handleToolCall(name: string, args: unknown, apiKey: string
       return executeCommand(args, apiKey);
     }
 
+    case "alphavantage-forex-data": {
+      if (!isAlphavantageForexArgs(args)) {
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for alphavantage-forex-data");
+      }
+      return fetchAlphavantageFXData(args, apiKey, env);
+    }
+
     default:
       throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
   }
@@ -331,6 +343,9 @@ export function getTools(integrations?: string[]) {
     EXTRACT_TOOL,
     EXA_SEARCH_TOOL,
     EXA_CONTENTS_TOOL,
+    
+    // Finance tools
+    ALPHAVANTAGE_FOREX_TOOL,
     
     // Calendar tools
     GET_CALENDAR_EVENTS_TOOL,

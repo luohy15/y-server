@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [06102346]
+
+### Added
+- Added Alpha Vantage forex data API integration for real-time and historical exchange rates
+
 ## [06102225]
 
 ### Added

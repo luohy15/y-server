@@ -141,6 +141,7 @@ export class StreamableHTTPServerTransport {
         'brave',
         's3',
         'e2b',
+        'alphavantage',
         'image-router'
       ];
       

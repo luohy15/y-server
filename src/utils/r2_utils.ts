@@ -40,7 +40,7 @@ export function base64ToArrayBuffer(base64Data: string): ArrayBuffer {
  * @returns The CDN URL of the uploaded file
  */
 export async function uploadToR2(
-  fileData: ReadableStream | ArrayBuffer,
+  fileData: ReadableStream | ArrayBuffer | string,
   env: Env,
   options: {
     filename?: string;
