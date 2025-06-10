@@ -136,11 +136,12 @@ export class StreamableHTTPServerTransport {
       const availableIntegrations = [
         'google-gmail',
         'google-calendar',
-        'brave',
         'tavily',
+        'exa',
+        'brave',
         's3',
-        'image-router',
-        'exa'
+        'e2b',
+        'image-router'
       ];
       
       return new Response(

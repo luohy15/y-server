@@ -1,4 +1,15 @@
 import { ErrorCode, McpError, Tool } from "@modelcontextprotocol/sdk/types.js";
+import { 
+  FILES_TOOL, 
+  PYTHON_TOOL, 
+  JAVASCRIPT_TOOL,
+  executeFileOperation, 
+  executePython, 
+  executeJavaScript,
+  isFilesArgs,
+  isPythonArgs,
+  isJavaScriptArgs
+} from "./sandbox";
 import { WEB_SEARCH_TOOL as BRAVE_SEARCH_TOOL, performWebSearch, isBraveWebSearchArgs } from "./search/brave/brave_web_search";
 import { SEARCH_TOOL as TAVILY_SEARCH_TOOL, performTavilySearch, isTavilySearchArgs } from "./search/tavily/tavily_search";
 import { EXTRACT_TOOL, performTavilyExtract, isTavilyExtractArgs } from "./search/tavily/tavily_extract";
@@ -252,6 +263,27 @@ export async function handleToolCall(name: string, args: unknown, apiKey: string
       return performFirecrawlScrape(args, apiKey);
     }
 
+    case "e2b-files": {
+      if (!isFilesArgs(args)) {
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for e2b-files");
+      }
+      return executeFileOperation(args, apiKey);
+    }
+
+    case "e2b-python": {
+      if (!isPythonArgs(args)) {
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for e2b-python");
+      }
+      return executePython(args, apiKey);
+    }
+
+    case "e2b-javascript": {
+      if (!isJavaScriptArgs(args)) {
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for e2b-javascript");
+      }
+      return executeJavaScript(args, apiKey);
+    }
+
     default:
       throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
   }
@@ -298,6 +330,11 @@ export function getTools(integrations?: string[]) {
     // Fetch tools
     SCRAPE_TOOL,
     CLOUDFLARE_FETCH_TOOL,
+    
+    // Sandbox tools
+    FILES_TOOL,
+    PYTHON_TOOL,
+    JAVASCRIPT_TOOL,
   ];
 
   // Get tools that don't require authentication (always available)
