@@ -1,7 +1,7 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
-import { readS3File } from "./read_file";
-import { writeS3File } from "./write_to_file";
-import { applyDiff } from "../diff";
+import { readS3File } from "../../file/s3/read_file";
+import { writeS3File } from "../../file/s3/write_to_file";
+import { applyDiff } from "../../../utils/file_diff";
 
 // Simple debug logger
 function debugLog(message: string, ...args: any[]): void {
@@ -16,7 +16,7 @@ export interface S3ReplaceInFileArgs {
 
 // Tool definition
 export const REPLACE_IN_FILE_TOOL: Tool = {
-  name: "s3-replace-in-file",
+  name: "s3-edit-file",
   description: `Request to replace sections of content in an existing file using SEARCH/REPLACE blocks 
 that define exact changes to specific parts of the file. 
 This tool should be PRIORITIZED OVER write_to_file when making changes to existing files, especially large ones.

@@ -1,73 +1,47 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { Sandbox } from "@e2b/code-interpreter";
-import { formatError } from "./e2b_common";
 
 // Type definitions
-export interface FilesParams {
-  operation: "list" | "read" | "write";
+export interface ListFilesParams {
   path: string;
-  content?: string; // Required for write operation
   sandboxId?: string; // Optional sandbox ID to resume
 }
 
 // Tool definition
-export const FILES_TOOL: Tool = {
-  name: "e2b-files",
-  description: "Manages files in a secure sandbox environment using E2B. " +
-    "Supports listing directories, reading file contents, and writing to files in an isolated environment. " +
+export const LIST_FILES_TOOL: Tool = {
+  name: "e2b-list-files",
+  description: "Lists files and directories in a secure sandbox environment using E2B. " +
     "All file operations are contained within the sandbox and will not affect the host system. " +
     "Supports sandbox persistence - sandbox is automatically paused after each operation and can be resumed using its ID.",
   inputSchema: {
     type: "object",
     properties: {
-      operation: {
-        type: "string",
-        enum: ["list", "read", "write"],
-        description: "File operation to perform"
-      },
       path: {
         type: "string",
-        description: "Path to the file or directory"
-      },
-      content: {
-        type: "string",
-        description: "Content to write (required for write operation)"
+        description: "Path to the directory to list"
       },
       sandboxId: {
         type: "string",
         description: "Optional ID of a paused sandbox to resume"
       }
     },
-    required: ["operation", "path"]
+    required: ["path"]
   },
 };
 
 // Helper function to check arguments
-export function isFilesArgs(args: unknown): args is FilesParams {
+export function isListFilesArgs(args: unknown): args is ListFilesParams {
   if (
     typeof args !== "object" ||
     args === null ||
-    !("operation" in args) ||
     !("path" in args)
   ) {
     return false;
   }
 
-  const params = args as FilesParams;
+  const params = args as ListFilesParams;
   
-  if (
-    typeof params.operation !== "string" ||
-    !["list", "read", "write"].includes(params.operation) ||
-    typeof params.path !== "string"
-  ) {
-    return false;
-  }
-
-  // Check if content is provided when operation is write
-  if (
-    params.operation === "write" &&
-    (!params.content || typeof params.content !== "string")
-  ) {
+  if (typeof params.path !== "string") {
     return false;
   }
 
@@ -103,14 +77,14 @@ async function getSandbox(apiKey: string, sandboxId?: string): Promise<Sandbox> 
 }
 
 /**
- * Executes file operations in a secure sandbox environment using E2B
+ * Lists files in a directory in a secure sandbox environment using E2B
  * 
- * @param params - The file operation parameters
+ * @param params - The list files operation parameters
  * @param apiKey - E2B API key
- * @returns Output from the file operation
+ * @returns Output from the list operation
  */
-export async function executeFileOperation(
-  params: FilesParams,
+export async function listFiles(
+  params: ListFilesParams,
   apiKey: string
 ): Promise<string> {
   let sandbox: Sandbox | null = null;
@@ -122,34 +96,9 @@ export async function executeFileOperation(
     // Store initial sandbox ID
     const initialSandboxId = sandbox.sandboxId;
     
-    // Execute file operation and get result
-    let result: string;
-    
-    switch (params.operation) {
-      case "list": {
-        const files = await sandbox.files.list(params.path);
-        result = formatListResult(params.path, files);
-        break;
-      }
-      
-      case "read": {
-        const content = await sandbox.files.read(params.path);
-        result = formatReadResult(params.path, content);
-        break;
-      }
-      
-      case "write": {
-        if (!params.content) {
-          throw new Error("Content is required for write operation");
-        }
-        await sandbox.files.write(params.path, params.content);
-        result = formatWriteResult(params.path);
-        break;
-      }
-      
-      default:
-        throw new Error(`Unsupported file operation: ${params.operation}`);
-    }
+    // Execute list operation
+    const files = await sandbox.files.list(params.path);
+    const result = formatListResult(params.path, files);
     
     // Always pause the sandbox after operation
     const pausedSandboxId = await sandbox.pause();
@@ -157,7 +106,7 @@ export async function executeFileOperation(
     // Add sandbox ID information to the result
     return formatResultWithSandboxInfo(result, initialSandboxId, pausedSandboxId);
   } catch (error) {
-    return formatError(error);
+    return `Error in E2B sandbox: ${error instanceof Error ? error.message : String(error)}`;
   }
 }
 
@@ -207,30 +156,4 @@ function formatListResult(path: string, files: any[]): string {
   }
   
   return output.join("\n\n");
-}
-
-/**
- * Formats the result of a read operation
- * 
- * @param path - File path
- * @param content - File content
- * @returns Formatted string with the read result
- */
-function formatReadResult(path: string, content: string): string {
-  const output: string[] = [];
-  
-  output.push(`Content of ${path}:`);
-  output.push(content || "(empty file)");
-  
-  return output.join("\n\n");
-}
-
-/**
- * Formats the result of a write operation
- * 
- * @param path - File path
- * @returns Formatted string with the write result
- */
-function formatWriteResult(path: string): string {
-  return `Successfully wrote to file: ${path}`;
 }

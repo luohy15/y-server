@@ -1,6 +1,6 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { parseS3ApiKey, parseS3Path, createS3Client } from "./s3_utils";
+import { parseS3ApiKey, parseS3Path, createS3Client } from "../../../utils/s3_utils";
 
 // Type definitions
 export interface S3WriteFileArgs {
@@ -17,7 +17,7 @@ If the file doesn't exist, it will be created.
 This tool will automatically create any directories needed to write the file.
 
 NOTE: For existing large files where you only need to make targeted changes,
-use s3-replace-in-file instead as it's more efficient and only modifies the specific
+use s3-edit-file instead as it's more efficient and only modifies the specific
 sections needed rather than rewriting the entire file content.`,
   inputSchema: {
     type: "object",

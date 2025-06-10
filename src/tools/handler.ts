@@ -1,15 +1,20 @@
 import { ErrorCode, McpError, Tool } from "@modelcontextprotocol/sdk/types.js";
 import { 
-  FILES_TOOL, 
-  PYTHON_TOOL, 
-  JAVASCRIPT_TOOL,
-  executeFileOperation, 
-  executePython, 
-  executeJavaScript,
-  isFilesArgs,
-  isPythonArgs,
-  isJavaScriptArgs
+  CODE_TOOL,
+  executeCode,
+  isCodeArgs
 } from "./sandbox";
+import { 
+  E2B_LIST_FILES_TOOL,
+  E2B_READ_FILE_TOOL,
+  E2B_WRITE_TO_FILE_TOOL,
+  isE2BListFilesArgs,
+  isE2BReadFileArgs,
+  isE2BWriteFileArgs,
+  listE2BFiles,
+  readE2BFile,
+  writeE2BFile
+} from "./file";
 import { WEB_SEARCH_TOOL as BRAVE_SEARCH_TOOL, performWebSearch, isBraveWebSearchArgs } from "./search/brave/brave_web_search";
 import { SEARCH_TOOL as TAVILY_SEARCH_TOOL, performTavilySearch, isTavilySearchArgs } from "./search/tavily/tavily_search";
 import { EXTRACT_TOOL, performTavilyExtract, isTavilyExtractArgs } from "./search/tavily/tavily_extract";
@@ -24,9 +29,9 @@ import {
 import { SCRAPE_TOOL, performFirecrawlScrape, isFirecrawlScrapeArgs } from "./fetch/firecrawl/firecrawl_scrape";
 import { CLOUDFLARE_FETCH_TOOL, performCloudfareFetch, isCloudfareFetchArgs } from "./fetch/cloudflare/cloudflare_fetch";
 import { IMAGE_GENERATE_TOOL, performImageGeneration, isImageGenerateArgs } from "./image/image-router/image_router_generate";
-import { READ_FILE_TOOL, isS3ReadFileArgs, readS3File } from "./editor/s3/read_file";
-import { WRITE_TO_FILE_TOOL, isS3WriteFileArgs, writeS3File } from "./editor/s3/write_to_file";
-import { REPLACE_IN_FILE_TOOL, isS3ReplaceInFileArgs, replaceInS3File } from "./editor/s3/replace_in_file";
+import { READ_FILE_TOOL, isS3ReadFileArgs, readS3File } from "./file/s3/read_file";
+import { WRITE_TO_FILE_TOOL, isS3WriteFileArgs, writeS3File } from "./file/s3/write_to_file";
+import { REPLACE_IN_FILE_TOOL, isS3ReplaceInFileArgs, replaceInS3File } from "./editor/s3/edit_file";
 import { 
   GET_CALENDAR_EVENTS_TOOL,
   CREATE_CALENDAR_EVENT_TOOL,
@@ -97,7 +102,7 @@ export async function handleToolCall(name: string, args: unknown, apiKey: string
       return writeS3File(args.path, args.content, apiKey);
     }
 
-    case "s3-replace-in-file": {
+    case "s3-edit-file": {
       if (!isS3ReplaceInFileArgs(args)) {
         throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for replace-in-file");
       }
@@ -263,25 +268,32 @@ export async function handleToolCall(name: string, args: unknown, apiKey: string
       return performFirecrawlScrape(args, apiKey);
     }
 
-    case "e2b-files": {
-      if (!isFilesArgs(args)) {
-        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for e2b-files");
+    case "e2b-list-files": {
+      if (!isE2BListFilesArgs(args)) {
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for e2b-list-files");
       }
-      return executeFileOperation(args, apiKey);
+      return listE2BFiles(args, apiKey);
     }
 
-    case "e2b-python": {
-      if (!isPythonArgs(args)) {
-        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for e2b-python");
+    case "e2b-read-file": {
+      if (!isE2BReadFileArgs(args)) {
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for e2b-read-file");
       }
-      return executePython(args, apiKey);
+      return readE2BFile(args, apiKey);
     }
 
-    case "e2b-javascript": {
-      if (!isJavaScriptArgs(args)) {
-        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for e2b-javascript");
+    case "e2b-write-to-file": {
+      if (!isE2BWriteFileArgs(args)) {
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for e2b-write-to-file");
       }
-      return executeJavaScript(args, apiKey);
+      return writeE2BFile(args, apiKey);
+    }
+
+    case "e2b-code": {
+      if (!isCodeArgs(args)) {
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for e2b-code");
+      }
+      return executeCode(args, apiKey);
     }
 
     default:
@@ -332,9 +344,10 @@ export function getTools(integrations?: string[]) {
     CLOUDFLARE_FETCH_TOOL,
     
     // Sandbox tools
-    FILES_TOOL,
-    PYTHON_TOOL,
-    JAVASCRIPT_TOOL,
+    E2B_LIST_FILES_TOOL,
+    E2B_READ_FILE_TOOL,
+    E2B_WRITE_TO_FILE_TOOL,
+    CODE_TOOL,
   ];
 
   // Get tools that don't require authentication (always available)

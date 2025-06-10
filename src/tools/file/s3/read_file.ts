@@ -1,6 +1,6 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { parseS3ApiKey, parseS3Path, createS3Client } from "./s3_utils";
+import { parseS3ApiKey, parseS3Path, createS3Client } from "../../../utils/s3_utils";
 
 // Type definitions
 export interface S3ReadFileArgs {
