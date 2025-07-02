@@ -142,6 +142,7 @@ export class StreamableHTTPServerTransport {
         's3',
         'e2b',
         'alphavantage',
+        '302.ai',
         'image-router'
       ];
       
