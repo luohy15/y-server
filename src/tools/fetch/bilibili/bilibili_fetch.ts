@@ -125,38 +125,75 @@ export function isBilibiliFetchArgs(args: unknown): args is BilibiliFetchParams 
 
 
 /**
- * Common fetch method for Bilibili API requests with proper headers and error handling
+ * Common fetch method for Bilibili API requests using Cloudflare browser rendering API
  */
-async function bilibiliFetch(url: string, apiKey: string, referer?: string): Promise<any> {
-  const response = await fetch(url, {
-    headers: {
-      'Cookie': apiKey,
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Referer': referer || 'https://www.bilibili.com/',
-      'Origin': 'https://www.bilibili.com',
-      'Accept': 'application/json, text/plain, */*',
-      'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
-    }
-  });
-
-  const text = await response.text();
-
-  console.log(`preview response from ${url}:`, text.slice(0, 200).replace(/\n/g, ' ').trim()); // Log first 200 characters for preview
-  
-  // Check if response is HTML (error page)
-  if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
-    throw new Error('Received HTML error page instead of JSON. This might be due to rate limiting or blocked requests.');
+async function bilibiliFetch(url: string, apiKey: string, env?: Env): Promise<any> {
+  if (!env?.CLOUDFLARE_BROWSER_RENDER_API_TOKEN) {
+    throw new Error('Cloudflare API token not available');
   }
+
+  // Try to parse as JSON first (cookie.json format), then fall back to string format (cookies.txt)
+  let cookiesArray;
+  try {
+    // Try JSON format first
+    const jsonCookies = JSON.parse(apiKey);
+    if (Array.isArray(jsonCookies)) {
+      cookiesArray = jsonCookies.map(cookie => ({
+        name: cookie.name,
+        value: cookie.value,
+        domain: cookie.domain
+      }));
+    } else {
+      throw new Error('Not an array');
+    }
+  } catch {
+    // Fall back to string format: "name1=value1;name2=value2;..."
+    cookiesArray = apiKey.split(';').map(cookie => {
+      const [name, value] = cookie.split('=');
+      return {
+        name: name.trim(),
+        value: value?.trim() || '',
+        domain: '.bilibili.com'
+      };
+    }).filter(cookie => cookie.name && cookie.value);
+  }
+
+  const response = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/browser-rendering/markdown`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${env.CLOUDFLARE_BROWSER_RENDER_API_TOKEN}`,
+      },
+      body: JSON.stringify({
+        url: url,
+        cookies: cookiesArray,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Cloudflare API error: ${response.status} ${response.statusText}`);
+  }
+
+  const data = await response.json() as { success: boolean; result: string; errors?: Array<{ message: string }> };
   
-  return JSON.parse(text);
+  if (!data.success) {
+    throw new Error(`Cloudflare API error: ${data.errors?.[0]?.message || "Unknown error"}`);
+  }
+
+  console.log(`preview response from ${url}:`, data.result.slice(0, 200).replace(/\n/g, ' ').trim());
+  
+  return JSON.parse(data.result);
 }
 
 /**
- * Fetches subtitles from a Bilibili video using standard fetch with API key as cookie
+ * Fetches subtitles from a Bilibili video using Cloudflare browser rendering API
  * 
  * @param params - The fetch parameters (BV ID)
- * @param apiKey - API key used as cookie content for authentication
- * @param env - Environment (not used anymore but kept for consistency)
+ * @param apiKey - API key as JSON string containing cookies array
+ * @param env - Environment containing Cloudflare credentials
  * @returns Subtitle content from the video
  */
 export async function performBilibiliFetch(
@@ -168,6 +205,10 @@ export async function performBilibiliFetch(
     return "Error: API key not available";
   }
 
+  if (!env?.CLOUDFLARE_BROWSER_RENDER_API_TOKEN) {
+    return "Error: Cloudflare API token not available";
+  }
+
   try {
     // Convert BV to AV
     const aid = bv2av(params.bvid);
@@ -175,7 +216,7 @@ export async function performBilibiliFetch(
     
     // Step 1: Get video info and CID
     const videoInfoUrl = `https://api.bilibili.com/x/web-interface/view?aid=${aid}`;
-    const videoInfo = await bilibiliFetch(videoInfoUrl, apiKey) as BilibiliVideoResponse;
+    const videoInfo = await bilibiliFetch(videoInfoUrl, apiKey, env) as BilibiliVideoResponse;
     
     if (videoInfo.code !== 0) {
       throw new Error(`Bilibili API error: ${videoInfo.message}`);
@@ -196,7 +237,7 @@ export async function performBilibiliFetch(
 
     // Step 2: Get subtitle info
     const subtitleInfoUrl = `https://api.bilibili.com/x/player/wbi/v2?aid=${aid}&cid=${cid}`;
-    const subtitleInfo = await bilibiliFetch(subtitleInfoUrl, apiKey, `https://www.bilibili.com/video/${params.bvid}`) as BilibiliSubtitleResponse;
+    const subtitleInfo = await bilibiliFetch(subtitleInfoUrl, apiKey, env) as BilibiliSubtitleResponse;
     
     if (subtitleInfo.code !== 0) {
       throw new Error(`Subtitle API error: ${subtitleInfo.message}`);
@@ -215,7 +256,7 @@ export async function performBilibiliFetch(
     console.log(`Step 2 completed: Found ${subtitles.length} subtitle(s), using ${subtitleLang}`);
 
     // Step 3: Fetch actual subtitle content
-    const subtitleData = await bilibiliFetch(subtitleUrl, apiKey, `https://www.bilibili.com/video/${params.bvid}`) as BilibiliSubtitleContent;
+    const subtitleData = await bilibiliFetch(subtitleUrl, apiKey, env) as BilibiliSubtitleContent;
     console.log(`Step 3 completed: Retrieved ${subtitleData.body?.length || 0} subtitle entries`);
     
     return formatBilibiliResponse(subtitleData, params.bvid, title, `Subtitles (${subtitleLang})`, partTitle, pageNum);
