@@ -125,6 +125,33 @@ export function isBilibiliFetchArgs(args: unknown): args is BilibiliFetchParams 
 
 
 /**
+ * Common fetch method for Bilibili API requests with proper headers and error handling
+ */
+async function bilibiliFetch(url: string, apiKey: string, referer?: string): Promise<any> {
+  const response = await fetch(url, {
+    headers: {
+      'Cookie': apiKey,
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Referer': referer || 'https://www.bilibili.com/',
+      'Origin': 'https://www.bilibili.com',
+      'Accept': 'application/json, text/plain, */*',
+      'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
+    }
+  });
+
+  const text = await response.text();
+
+  console.log(`preview response from ${url}:`, text.slice(0, 200).replace(/\n/g, ' ').trim()); // Log first 200 characters for preview
+  
+  // Check if response is HTML (error page)
+  if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+    throw new Error('Received HTML error page instead of JSON. This might be due to rate limiting or blocked requests.');
+  }
+  
+  return JSON.parse(text);
+}
+
+/**
  * Fetches subtitles from a Bilibili video using standard fetch with API key as cookie
  * 
  * @param params - The fetch parameters (BV ID)
@@ -148,13 +175,7 @@ export async function performBilibiliFetch(
     
     // Step 1: Get video info and CID
     const videoInfoUrl = `https://api.bilibili.com/x/web-interface/view?aid=${aid}`;
-    const videoInfoResponse = await fetch(videoInfoUrl, {
-      headers: {
-        'Cookie': apiKey,
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36'
-      }
-    });
-    const videoInfo = await videoInfoResponse.json() as BilibiliVideoResponse;
+    const videoInfo = await bilibiliFetch(videoInfoUrl, apiKey) as BilibiliVideoResponse;
     
     if (videoInfo.code !== 0) {
       throw new Error(`Bilibili API error: ${videoInfo.message}`);
@@ -171,17 +192,11 @@ export async function performBilibiliFetch(
     const cid = targetPage.cid;
     const title = videoInfo.data.title;
     const partTitle = targetPage.part;
+    console.log(`Step 1 completed: Got video info - Title: ${title}, CID: ${cid}`);
 
     // Step 2: Get subtitle info
     const subtitleInfoUrl = `https://api.bilibili.com/x/player/wbi/v2?aid=${aid}&cid=${cid}`;
-    const subtitleInfoResponse = await fetch(subtitleInfoUrl, {
-      headers: {
-        'Cookie': apiKey,
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36'
-      }
-    });
-    const subtitleInfo = await subtitleInfoResponse.json() as BilibiliSubtitleResponse;
-    console.log(`Subtitle info for AV ${aid}:`, subtitleInfo);
+    const subtitleInfo = await bilibiliFetch(subtitleInfoUrl, apiKey, `https://www.bilibili.com/video/${params.bvid}`) as BilibiliSubtitleResponse;
     
     if (subtitleInfo.code !== 0) {
       throw new Error(`Subtitle API error: ${subtitleInfo.message}`);
@@ -190,23 +205,18 @@ export async function performBilibiliFetch(
     const subtitles = subtitleInfo.data?.subtitle?.subtitles;
     
     if (!subtitles || subtitles.length === 0) {
+      console.log(`Step 2 completed: No subtitles available`);
       return formatBilibiliResponse(null, params.bvid, title, "No subtitles available for this video", partTitle, pageNum);
     }
 
     // Get the first available subtitle (usually Chinese)
     const subtitleUrl = `https:${subtitles[0].subtitle_url}`;
     const subtitleLang = subtitles[0].lan_doc;
-
-    console.log(`Fetching subtitles from: ${subtitleUrl} (${subtitleLang})`);
+    console.log(`Step 2 completed: Found ${subtitles.length} subtitle(s), using ${subtitleLang}`);
 
     // Step 3: Fetch actual subtitle content
-    const subtitleResponse = await fetch(subtitleUrl, {
-      headers: {
-        'Cookie': apiKey,
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36'
-      }
-    });
-    const subtitleData = await subtitleResponse.json() as BilibiliSubtitleContent;
+    const subtitleData = await bilibiliFetch(subtitleUrl, apiKey, `https://www.bilibili.com/video/${params.bvid}`) as BilibiliSubtitleContent;
+    console.log(`Step 3 completed: Retrieved ${subtitleData.body?.length || 0} subtitle entries`);
     
     return formatBilibiliResponse(subtitleData, params.bvid, title, `Subtitles (${subtitleLang})`, partTitle, pageNum);
 
