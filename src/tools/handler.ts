@@ -27,6 +27,7 @@ import { SEARCH_TOOL as TAVILY_SEARCH_TOOL, performTavilySearch, isTavilySearchA
 import { SEARCH_TOOL as EXA_SEARCH_TOOL, performExaSearch, isExaSearchArgs} from "./search/exa/exa_search";
 import { WEB_SEARCH_TOOL as BRAVE_SEARCH_TOOL, performWebSearch, isBraveWebSearchArgs } from "./search/brave/brave_web_search";
 import { CLOUDFLARE_FETCH_TOOL, performCloudfareFetch, isCloudfareFetchArgs } from "./fetch/cloudflare/cloudflare_fetch";
+import { BILIBILI_FETCH_TOOL, performBilibiliFetch, isBilibiliFetchArgs } from "./fetch/bilibili/bilibili_fetch";
 import { EXTRACT_TOOL, performTavilyExtract, isTavilyExtractArgs } from "./fetch/tavily/tavily_extract";
 import { SCRAPE_TOOL, performFirecrawlScrape, isFirecrawlScrapeArgs } from "./fetch/firecrawl/firecrawl_scrape";
 import { CONTENTS_TOOL as EXA_CONTENTS_TOOL, retrieveExaContents, isExaContentsArgs} from "./fetch/exa/exa_contents";
@@ -88,6 +89,13 @@ export async function handleToolCall(name: string, args: unknown, apiKey: string
         throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for fetch");
       }
       return performCloudfareFetch(args, env);
+    }
+
+    case "bilibili-subtitle-fetch": {
+      if (!isBilibiliFetchArgs(args)) {
+        throw new McpError(ErrorCode.InvalidParams, "Invalid arguments for bilibili-subtitle-fetch");
+      }
+      return performBilibiliFetch(args, apiKey, env);
     }
 
     case "s3-read-file": {
@@ -372,7 +380,8 @@ export function getTools(integrations?: string[]) {
 
   // Get tools that don't require authentication (always available)
   const alwaysAvailableTools = [
-    CLOUDFLARE_FETCH_TOOL
+    CLOUDFLARE_FETCH_TOOL,
+    BILIBILI_FETCH_TOOL
   ];
 
   // If no integrations specified, return always available tools

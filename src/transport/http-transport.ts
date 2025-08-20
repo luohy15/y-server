@@ -143,7 +143,8 @@ export class StreamableHTTPServerTransport {
         'e2b',
         'alphavantage',
         '302.ai',
-        'image-router'
+        'image-router',
+        'bilibili'
       ];
       
       return new Response(
