@@ -11,3 +11,8 @@ bucket_name = "cdn-yovy-app"
 port = 8788
 ip = "localhost"
 local_protocol = "http"
+
+# Enable logging
+[observability]
+enabled = true
+head_sampling_rate = 1
